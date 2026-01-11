@@ -287,7 +287,7 @@ export default function VoiceRecorder() {
                         transition={{ type: "spring", damping: 20, stiffness: 100 }}
                         className="w-full flex justify-center mt-16"
                     >
-                        <NoteCard data={result} />
+                        <NoteCard id="preview" data={result} />
                     </motion.div>
                 )}
             </AnimatePresence>
