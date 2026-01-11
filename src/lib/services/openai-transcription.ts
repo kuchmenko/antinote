@@ -20,8 +20,8 @@ export class OpenAITranscriptionService implements TranscriptionService {
             const response = await this.openai.audio.transcriptions.create({
                 file: file,
                 model: "whisper-1",
-                language: "en",
-                prompt: "Voice note, clear speech, professional context, tasks, ideas, plans.",
+                // language: "en", // Removed to allow auto-detection
+                prompt: "Voice note, clear speech, professional context, tasks, ideas, plans. Голосовая заметка, четкая речь.",
             });
 
             return response.text;

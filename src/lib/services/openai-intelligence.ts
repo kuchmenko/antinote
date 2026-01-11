@@ -16,6 +16,9 @@ export class OpenAIIntelligenceService implements IntelligenceService {
         const prompt = `
     You are an expert personal assistant. Your goal is to structure the following voice note into a structured format.
     
+    The voice note may be in ANY language (English, Russian, etc.). 
+    **CRITICAL: Preserve the original language of the note for the 'content', 'tags', and 'next_steps' fields.**
+
     Analyze the text and determine its primary type:
     - 'task': Actionable items, to-dos.
     - 'idea': Thoughts, concepts, creative sparks.
@@ -24,9 +27,9 @@ export class OpenAIIntelligenceService implements IntelligenceService {
     - 'unknown': If it doesn't fit clearly.
 
     Extract:
-    - content: The core message, cleaned up.
-    - tags: 2-4 relevant tags (lowercase).
-    - next_steps: 1-3 concrete, actionable next steps if applicable.
+    - content: The core message, cleaned up (in original language).
+    - tags: 2-4 relevant tags (lowercase, in original language).
+    - next_steps: 1-3 concrete, actionable next steps if applicable (in original language).
 
     Return ONLY valid JSON matching this structure:
     {
@@ -75,6 +78,8 @@ export class OpenAIIntelligenceService implements IntelligenceService {
 
     Here are the raw notes from today:
     ${combinedText}
+
+    **Language Instruction**: Detect the primary language of the notes (e.g., Russian or English). Generate the summary **IN THAT SAME LANGUAGE**.
 
     Please generate a markdown summary that includes:
     1.  **Executive Summary**: A 2-3 sentence overview of the day's themes.
