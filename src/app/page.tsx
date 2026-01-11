@@ -1,4 +1,4 @@
-import VoiceRecorder from "@/components/VoiceRecorder";
+import CaptureFlow from "@/components/CaptureFlow";
 import DailyFeed from "@/components/DailyFeed";
 import SynthesisButton from "@/components/SynthesisButton";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
@@ -73,9 +73,9 @@ export default async function Home() {
           </h1>
 
           <p className="text-xl md:text-2xl text-white/60 max-w-lg font-light leading-relaxed mb-8">
-            Your second brain, <span className="text-white font-normal">voice-first</span>.
+            Your second brain for <span className="text-white font-normal">voice and handwriting</span>.
             <br />
-            Speak your mind, we handle the rest.
+            Ergonomic, efficient capture — structured in seconds.
           </p>
 
           <Link
@@ -90,7 +90,7 @@ export default async function Home() {
         {/* Main Interaction Area */}
         <div className="w-full mb-24">
           <SignedIn>
-            <VoiceRecorder />
+            <CaptureFlow />
           </SignedIn>
 
           <SignedOut>
