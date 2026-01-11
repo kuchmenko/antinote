@@ -1,9 +1,34 @@
 import VoiceRecorder from "@/components/VoiceRecorder";
 import DailyFeed from "@/components/DailyFeed";
+import SynthesisButton from "@/components/SynthesisButton";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import NeuralOrb from "@/components/NeuralOrb";
+import { auth } from "@clerk/nextjs/server";
+import { db } from "@/db";
+import { entries } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
+import { StructuredData } from "@/lib/services/types";
+import Link from "next/link";
 
-export default function Home() {
+export default async function Home() {
+  const { userId } = await auth();
+
+  let userEntries: { id: string; createdAt: Date; structured: StructuredData }[] = [];
+
+  if (userId) {
+    const data = await db
+      .select()
+      .from(entries)
+      .where(eq(entries.userId, userId))
+      .orderBy(desc(entries.createdAt));
+
+    userEntries = data.map(entry => ({
+      id: entry.id,
+      createdAt: entry.createdAt,
+      structured: entry.structuredData as unknown as StructuredData,
+    }));
+  }
+
   return (
     <main className="relative min-h-screen w-full overflow-hidden flex flex-col items-center">
       {/* Aurora Background Layer */}
@@ -47,11 +72,19 @@ export default function Home() {
             Antinote
           </h1>
 
-          <p className="text-xl md:text-2xl text-white/60 max-w-lg font-light leading-relaxed">
+          <p className="text-xl md:text-2xl text-white/60 max-w-lg font-light leading-relaxed mb-8">
             Your second brain, <span className="text-white font-normal">voice-first</span>.
             <br />
             Speak your mind, we handle the rest.
           </p>
+
+          <Link
+            href="/history"
+            className="text-sm text-white/40 hover:text-white transition-colors border-b border-transparent hover:border-white/40 pb-0.5"
+            data-interactive="true"
+          >
+            View All Entries
+          </Link>
         </div>
 
         {/* Main Interaction Area */}
@@ -74,7 +107,8 @@ export default function Home() {
 
         {/* Feed Section */}
         <SignedIn>
-          <DailyFeed />
+          <DailyFeed entries={userEntries} />
+          <SynthesisButton />
         </SignedIn>
       </div>
     </main>

@@ -9,8 +9,11 @@ import { StructuredData } from "@/lib/services/types";
 
 export default function VoiceRecorder() {
     const [isRecording, setIsRecording] = useState(false);
-    const [isProcessing, setIsProcessing] = useState(false);
+    // Processing States: 'idle' | 'uploading' | 'transcribing' | 'structuring' | 'complete' | 'error'
+    const [processingState, setProcessingState] = useState<string>("idle");
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [result, setResult] = useState<StructuredData | null>(null);
+
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -21,6 +24,10 @@ export default function VoiceRecorder() {
 
     const startRecording = async () => {
         try {
+            setProcessingState("idle");
+            setResult(null);
+            setErrorMessage(null);
+
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorderRef.current = new MediaRecorder(stream);
 
@@ -43,7 +50,7 @@ export default function VoiceRecorder() {
             mediaRecorderRef.current.onstop = async () => {
                 const blob = new Blob(chunksRef.current, { type: "audio/webm" });
                 chunksRef.current = [];
-                handleUpload(blob);
+                handleProcessing(blob);
 
                 // Cleanup
                 if (stream) stream.getTracks().forEach(track => track.stop());
@@ -56,7 +63,8 @@ export default function VoiceRecorder() {
             drawVisualizer();
         } catch (err) {
             console.error("Error accessing microphone:", err);
-            alert("Could not access microphone. Please check permissions.");
+            setErrorMessage("Microphone access denied. Please check permissions.");
+            setProcessingState("error");
         }
     };
 
@@ -64,34 +72,41 @@ export default function VoiceRecorder() {
         if (mediaRecorderRef.current && isRecording) {
             mediaRecorderRef.current.stop();
             setIsRecording(false);
-            setIsProcessing(true);
         }
     };
 
-    const handleUpload = async (audioBlob: Blob) => {
-        setIsProcessing(true);
-        setResult(null);
+    const handleProcessing = async (audioBlob: Blob) => {
         try {
+            // Step 1: Transcribe
+            setProcessingState("transcribing");
             const formData = new FormData();
             formData.append("file", audioBlob, "recording.webm");
 
-            const response = await fetch("/api/ingest", {
+            const transcribeRes = await fetch("/api/transcribe", {
                 method: "POST",
                 body: formData,
             });
 
-            if (!response.ok) {
-                throw new Error("Upload failed");
-            }
+            if (!transcribeRes.ok) throw new Error("Transcription failed");
+            const { transcript } = await transcribeRes.json();
 
-            const data = await response.json();
-            console.log("Processing complete:", data);
-            setResult(data.structured);
-        } catch (error) {
-            console.error("Error uploading:", error);
-            alert("Failed to process voice note.");
-        } finally {
-            setIsProcessing(false);
+            // Step 2: Structure
+            setProcessingState("structuring");
+            const structureRes = await fetch("/api/structure", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ transcript }),
+            });
+
+            if (!structureRes.ok) throw new Error("Structuring failed");
+            const { structured } = await structureRes.json();
+
+            setResult(structured);
+            setProcessingState("complete");
+        } catch (error: any) {
+            console.error("Processing error:", error);
+            setErrorMessage(error.message || "Something went wrong");
+            setProcessingState("error");
         }
     };
 
@@ -150,7 +165,10 @@ export default function VoiceRecorder() {
     return (
         <div className="flex flex-col items-center justify-center w-full relative">
             {/* Visualizer Container */}
-            <div className="relative w-full h-[240px] flex items-center justify-center mb-12">
+            <div
+                className="relative w-full h-[240px] flex items-center justify-center mb-12"
+                data-interactive="true"
+            >
                 <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/[0.02] to-transparent pointer-events-none" />
 
                 <canvas
@@ -163,7 +181,7 @@ export default function VoiceRecorder() {
                     )}
                 />
 
-                {!isRecording && !isProcessing && !result && (
+                {!isRecording && processingState === "idle" && !result && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                         <Sparkles className="w-6 h-6 text-white/20 mb-4 animate-pulse" />
                         <p className="text-white/40 text-sm font-light tracking-[0.2em] uppercase">
@@ -173,24 +191,56 @@ export default function VoiceRecorder() {
                 )}
             </div>
 
-            {/* Controls */}
-            <div className="relative z-20">
+            {/* Controls & Status */}
+            <div className="relative z-20 min-h-[120px] flex flex-col items-center justify-start">
                 <AnimatePresence mode="wait">
-                    {isProcessing ? (
+                    {processingState === "transcribing" || processingState === "structuring" ? (
                         <motion.div
                             key="processing"
                             initial={{ scale: 0.8, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.8, opacity: 0 }}
-                            className="flex flex-col items-center gap-4"
+                            className="flex flex-col items-center gap-6"
                         >
                             <div className="relative">
                                 <div className="absolute inset-0 rounded-full bg-white/20 blur-xl animate-pulse" />
-                                <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md">
-                                    <Loader2 className="animate-spin text-white" size={32} />
+                                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center backdrop-blur-md">
+                                    <Loader2 className="animate-spin text-white" size={24} />
                                 </div>
                             </div>
-                            <span className="text-white/60 text-sm font-medium tracking-wide animate-pulse">Structuring Thoughts...</span>
+
+                            {/* Progress Steps */}
+                            <div className="flex flex-col gap-2 w-64">
+                                <div className="flex items-center gap-3 text-sm">
+                                    <div className={clsx("w-2 h-2 rounded-full transition-colors duration-300", processingState === "transcribing" ? "bg-purple-400 animate-pulse" : "bg-emerald-500")} />
+                                    <span className={clsx("transition-colors duration-300", processingState === "transcribing" ? "text-white" : "text-white/40")}>
+                                        Transcribing Audio...
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-3 text-sm">
+                                    <div className={clsx("w-2 h-2 rounded-full transition-colors duration-300", processingState === "structuring" ? "bg-purple-400 animate-pulse" : processingState === "transcribing" ? "bg-white/10" : "bg-emerald-500")} />
+                                    <span className={clsx("transition-colors duration-300", processingState === "structuring" ? "text-white" : "text-white/40")}>
+                                        Structuring Thoughts...
+                                    </span>
+                                </div>
+                            </div>
+                        </motion.div>
+                    ) : processingState === "error" ? (
+                        <motion.div
+                            key="error"
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.8, opacity: 0 }}
+                            className="flex flex-col items-center gap-4"
+                        >
+                            <div className="text-red-400 font-medium">{errorMessage}</div>
+                            <button
+                                onClick={() => setProcessingState("idle")}
+                                className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-sm text-white transition-colors"
+                                data-interactive="true"
+                            >
+                                Try Again
+                            </button>
                         </motion.div>
                     ) : isRecording ? (
                         <motion.button

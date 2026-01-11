@@ -42,7 +42,7 @@ export class OpenAIIntelligenceService implements IntelligenceService {
 
         try {
             const response = await this.openai.chat.completions.create({
-                model: "gpt-4o",
+                model: "gpt-4o-mini",
                 messages: [
                     { role: "system", content: "You are a helpful assistant that outputs JSON." },
                     { role: "user", content: prompt }
@@ -67,7 +67,40 @@ export class OpenAIIntelligenceService implements IntelligenceService {
     }
 
     async synthesize(transcripts: string[]): Promise<string> {
-        // Implementation for end-of-day synthesis (future)
-        return "Synthesis not implemented yet.";
+        console.log(`[OpenAI] Synthesizing ${transcripts.length} entries...`);
+
+        const combinedText = transcripts.join("\n\n---\n\n");
+        const prompt = `
+    You are an expert executive assistant. Your goal is to synthesize the user's daily notes into a cohesive summary and action plan.
+
+    Here are the raw notes from today:
+    ${combinedText}
+
+    Please generate a markdown summary that includes:
+    1.  **Executive Summary**: A 2-3 sentence overview of the day's themes.
+    2.  **Key Action Items**: A checklist of the most important tasks extracted from the notes.
+    3.  **Insights & Ideas**: A bulleted list of creative sparks or important thoughts.
+    4.  **Tomorrow's Plan**: A suggested schedule or focus for the next day based on these notes.
+
+    Format the output in clean, professional Markdown. Use emojis sparingly but effectively.
+    `;
+
+        try {
+            const response = await this.openai.chat.completions.create({
+                model: "gpt-5.2-medium",
+                messages: [
+                    { role: "system", content: "You are a helpful assistant that outputs Markdown." },
+                    { role: "user", content: prompt }
+                ],
+            });
+
+            const content = response.choices[0].message.content;
+            if (!content) throw new Error("No content returned from OpenAI");
+
+            return content;
+        } catch (error) {
+            console.error("OpenAI Synthesis Error:", error);
+            return "Failed to generate synthesis. Please try again later.";
+        }
     }
 }

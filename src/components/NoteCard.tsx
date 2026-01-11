@@ -90,6 +90,7 @@ export default function NoteCard({ data }: NoteCardProps) {
             }}
             onMouseMove={handleMouseMove}
             onMouseLeave={handleMouseLeave}
+            data-interactive="true"
             className={clsx(
                 "relative w-full max-w-[550px] p-8 rounded-3xl transition-all duration-300",
                 "bg-black/40 backdrop-blur-xl border perspective-1000",
