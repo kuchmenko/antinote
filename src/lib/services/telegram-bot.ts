@@ -12,6 +12,11 @@ interface BotContext extends Context {
     match?: RegExpExecArray;
 }
 
+const mainKeyboard = Markup.keyboard([
+    ["📋 Recent", "✨ Summary"],
+    ["❓ Help"]
+]).resize();
+
 export class TelegramBotService {
     private bot: Telegraf<BotContext>;
     private intelligence: OpenAIIntelligenceService;
@@ -67,74 +72,22 @@ export class TelegramBotService {
                 // Delete used token
                 await db.delete(connectTokens).where(eq(connectTokens.token, token));
 
-                ctx.reply("Connected! You can now send me text or voice notes.");
+                ctx.reply("Connected! You can now send me text or voice notes.", mainKeyboard);
             } catch (error) {
                 console.error("Connection error:", error);
                 ctx.reply("An error occurred while connecting your account.");
             }
         });
 
-        // Commands
-        this.bot.command("help", (ctx) => {
-            ctx.reply(
-                "Antinote Bot Help:\n" +
-                "/summary - Generate a summary of today's notes\n" +
-                "/recent - List the last 5 entries\n" +
-                "Send any text or voice message to create a new note."
-            );
-        });
+        // Commands & Buttons
+        this.bot.command("help", (ctx) => this.sendHelp(ctx));
+        this.bot.hears("❓ Help", (ctx) => this.sendHelp(ctx));
 
-        this.bot.command("recent", async (ctx) => {
-            const userId = await this.getUserId(ctx.chat.id.toString());
-            if (!userId) return ctx.reply("Please connect your account first.");
+        this.bot.command("recent", (ctx) => this.handleRecent(ctx));
+        this.bot.hears("📋 Recent", (ctx) => this.handleRecent(ctx));
 
-            const recentEntries = await db
-                .select()
-                .from(entries)
-                .where(eq(entries.userId, userId))
-                .orderBy(desc(entries.createdAt))
-                .limit(5);
-
-            if (recentEntries.length === 0) {
-                return ctx.reply("No notes found.");
-            }
-
-            const message = recentEntries
-                .map((e) => {
-                    const data = e.structuredData as unknown as StructuredData;
-                    const icon = data.type === 'task' ? '✅' : data.type === 'idea' ? '💡' : '📝';
-                    return `${icon} ${data.content}`;
-                })
-                .join("\n\n");
-
-            ctx.reply(message);
-        });
-
-        this.bot.command("summary", async (ctx) => {
-            // Note: In a real app, you might want to filter by "today" in local time.
-            // For now we'll just grab recent entries to demo.
-            const userId = await this.getUserId(ctx.chat.id.toString());
-            if (!userId) return ctx.reply("Please connect your account first.");
-
-            ctx.sendChatAction("typing");
-
-            const recentEntries = await db
-                .select()
-                .from(entries)
-                .where(eq(entries.userId, userId))
-                .orderBy(desc(entries.createdAt))
-                .limit(10); // Synthesize last 10 notes
-
-            if (recentEntries.length === 0) {
-                return ctx.reply("No notes found to summarize.");
-            }
-
-            const transcripts = recentEntries.map(e => e.transcript);
-            const synthesis = await this.intelligence.synthesize(transcripts);
-
-            ctx.reply(synthesis, { parse_mode: "Markdown" });
-        });
-
+        this.bot.command("summary", (ctx) => this.handleSummary(ctx));
+        this.bot.hears("✨ Summary", (ctx) => this.handleSummary(ctx));
 
         // Text messages
         this.bot.on(message("text"), async (ctx) => {
@@ -144,6 +97,9 @@ export class TelegramBotService {
             }
 
             const text = ctx.message.text;
+            // Ignore if it matched a button (though hears should catch it first, checking just in case)
+            if (["📋 Recent", "✨ Summary", "❓ Help"].includes(text)) return;
+
             await this.processNote(ctx, userId, text);
         });
 
@@ -195,6 +151,63 @@ export class TelegramBotService {
         });
     }
 
+    private async sendHelp(ctx: BotContext) {
+        ctx.reply(
+            "Antinote Bot Help:\n" +
+            "Tap the buttons below or send any text/voice to capture a note.",
+            mainKeyboard
+        );
+    }
+
+    private async handleRecent(ctx: BotContext) {
+        const userId = await this.getUserId(ctx.chat?.id.toString() || "");
+        if (!userId) return ctx.reply("Please connect your account first.");
+
+        const recentEntries = await db
+            .select()
+            .from(entries)
+            .where(eq(entries.userId, userId))
+            .orderBy(desc(entries.createdAt))
+            .limit(5);
+
+        if (recentEntries.length === 0) {
+            return ctx.reply("No notes found.");
+        }
+
+        const message = recentEntries
+            .map((e) => {
+                const data = e.structuredData as unknown as StructuredData;
+                const icon = data.type === 'task' ? '✅' : data.type === 'idea' ? '💡' : '📝';
+                return `${icon} ${data.content}`;
+            })
+            .join("\n\n");
+
+        ctx.reply(message);
+    }
+
+    private async handleSummary(ctx: BotContext) {
+        const userId = await this.getUserId(ctx.chat?.id.toString() || "");
+        if (!userId) return ctx.reply("Please connect your account first.");
+
+        ctx.sendChatAction("typing");
+
+        const recentEntries = await db
+            .select()
+            .from(entries)
+            .where(eq(entries.userId, userId))
+            .orderBy(desc(entries.createdAt))
+            .limit(10);
+
+        if (recentEntries.length === 0) {
+            return ctx.reply("No notes found to summarize.");
+        }
+
+        const transcripts = recentEntries.map(e => e.transcript);
+        const synthesis = await this.intelligence.synthesize(transcripts);
+
+        ctx.reply(synthesis, { parse_mode: "Markdown" });
+    }
+
     private async getUserId(telegramChatId: string): Promise<string | null> {
         const user = await db.query.telegramUsers.findFirst({
             where: eq(telegramUsers.telegramChatId, telegramChatId),
@@ -214,16 +227,25 @@ export class TelegramBotService {
                     userId,
                     transcript: text,
                     structuredData: structure,
-                    // rawAudioUrl: isVoice ? ... : null // Need storage solution (e.g. S3) for voice files
                 })
                 .returning();
 
-            // Reply with confirmation
+            // Rich feedback
             const icon = structure.type === 'task' ? '✅' : structure.type === 'idea' ? '💡' : '📝';
-            const actionText = structure.type === 'task' ? 'Task saved' : 'Note saved';
+            const typeLabel = structure.type.charAt(0).toUpperCase() + structure.type.slice(1);
+
+            let replyText = `${icon} Saved as ${typeLabel}\n\n"${structure.content}"`;
+
+            if (structure.tags && structure.tags.length > 0) {
+                replyText += `\n\n🏷 ${structure.tags.map(t => `#${t}`).join(" ")}`;
+            }
+
+            if (structure.type === 'task' && (structure as any).dueDate) {
+                replyText += `\n📅 Due: ${(structure as any).dueDate}`;
+            }
 
             await ctx.reply(
-                `${icon} ${actionText}: "${structure.content}"`,
+                replyText,
                 Markup.inlineKeyboard([
                     Markup.button.callback("Delete", `delete:${newEntry.id}`),
                 ])
