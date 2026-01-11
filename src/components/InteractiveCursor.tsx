@@ -18,13 +18,13 @@ export default function InteractiveCursor() {
     const mouseX = useMotionValue(-100);
     const mouseY = useMotionValue(-100);
 
-    // Smooth springs for the dot
-    const springConfig = { damping: 25, stiffness: 700 };
+    // Smooth springs for the dot - faster and more responsive
+    const springConfig = { damping: 20, stiffness: 800, mass: 0.5 };
     const dotX = useSpring(mouseX, springConfig);
     const dotY = useSpring(mouseY, springConfig);
 
-    // Smooth springs for the ring (when not hovering)
-    const trailConfig = { damping: 30, stiffness: 200, mass: 0.8 };
+    // Smooth springs for the ring (when not hovering) - more fluid motion
+    const trailConfig = { damping: 22, stiffness: 250, mass: 0.6 };
     const trailX = useSpring(mouseX, trailConfig);
     const trailY = useSpring(mouseY, trailConfig);
 
@@ -85,6 +85,10 @@ export default function InteractiveCursor() {
                     scale: hoverState ? 0 : 1,
                     opacity: hoverState ? 0 : 1,
                 }}
+                transition={{
+                    duration: 0.15,
+                    ease: "easeOut",
+                }}
             />
 
             {/* Trailing Ring / Wrap-around Box */}
@@ -104,9 +108,10 @@ export default function InteractiveCursor() {
                 }}
                 transition={{
                     type: "spring",
-                    damping: 25,
-                    stiffness: 300,
-                    mass: 0.5,
+                    damping: 28,
+                    stiffness: 350,
+                    mass: 0.4,
+                    restDelta: 0.001,
                 }}
             />
         </>

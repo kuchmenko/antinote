@@ -45,7 +45,7 @@ export class OpenAIIntelligenceService implements IntelligenceService {
 
         try {
             const response = await this.openai.chat.completions.create({
-                model: "gpt-4o-mini",
+                model: "gpt-5-mini",
                 messages: [
                     { role: "system", content: "You are a helpful assistant that outputs JSON." },
                     { role: "user", content: prompt }
@@ -92,7 +92,7 @@ export class OpenAIIntelligenceService implements IntelligenceService {
 
         try {
             const response = await this.openai.chat.completions.create({
-                model: "gpt-5.2-medium",
+                model: "gpt-5.2",
                 messages: [
                     { role: "system", content: "You are a helpful assistant that outputs Markdown." },
                     { role: "user", content: prompt }

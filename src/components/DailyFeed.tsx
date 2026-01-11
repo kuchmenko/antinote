@@ -24,8 +24,51 @@ interface DailyFeedProps {
     }[];
 }
 
-export default function DailyFeed({ entries }: DailyFeedProps) {
+export default function DailyFeed({ entries: initialEntries }: DailyFeedProps) {
     const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+    const [entries, setEntries] = useState(initialEntries);
+
+    const handleDelete = async (id: string) => {
+        try {
+            const response = await fetch(`/api/delete?id=${id}`, {
+                method: "DELETE",
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to delete entry");
+            }
+
+            // Remove from local state
+            setEntries(prev => prev.filter(entry => entry.id !== id));
+        } catch (error) {
+            console.error("Error deleting entry:", error);
+            alert("Failed to delete entry. Please try again.");
+        }
+    };
+
+    const handleUpdate = async (id: string, updatedData: Partial<StructuredData>) => {
+        try {
+            const response = await fetch("/api/update", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ entryId: id, updatedData }),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to update entry");
+            }
+
+            // Update local state
+            setEntries(prev => prev.map(entry =>
+                entry.id === id
+                    ? { ...entry, structured: { ...entry.structured, ...updatedData } }
+                    : entry
+            ));
+        } catch (error) {
+            console.error("Error updating entry:", error);
+            alert("Failed to update entry. Please try again.");
+        }
+    };
 
     const filteredFeed = activeFilter === "all"
         ? entries
@@ -83,7 +126,12 @@ export default function DailyFeed({ entries }: DailyFeedProps) {
                                     {entry.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
-                            <NoteCard data={entry.structured} />
+                            <NoteCard
+                                id={entry.id}
+                                data={entry.structured}
+                                onDelete={handleDelete}
+                                onUpdate={handleUpdate}
+                            />
                         </motion.div>
                     ))}
                 </AnimatePresence>

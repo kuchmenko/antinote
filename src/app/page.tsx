@@ -3,15 +3,17 @@ import DailyFeed from "@/components/DailyFeed";
 import SynthesisButton from "@/components/SynthesisButton";
 import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import NeuralOrb from "@/components/NeuralOrb";
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { entries } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { StructuredData } from "@/lib/services/types";
 import Link from "next/link";
+import ConnectTelegram from "@/components/ConnectTelegram";
 
 export default async function Home() {
   const { userId } = await auth();
+  const user = await currentUser();
 
   let userEntries: { id: string; createdAt: Date; structured: StructuredData }[] = [];
 
@@ -29,6 +31,15 @@ export default async function Home() {
     }));
   }
 
+  // Determine time-based greeting
+  const hour = new Date().getHours();
+  let timeGreeting = "Good evening";
+  if (hour < 12) timeGreeting = "Good morning";
+  else if (hour < 18) timeGreeting = "Good afternoon";
+
+  const firstName = user?.firstName;
+  const greeting = firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
+
   return (
     <main className="relative min-h-screen w-full overflow-hidden flex flex-col items-center">
       {/* Aurora Background Layer */}
@@ -43,12 +54,15 @@ export default async function Home() {
       {/* Auth Header */}
       <div className="absolute top-6 right-6 z-50">
         <SignedIn>
-          <div className="p-1 rounded-full bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-colors">
-            <UserButton appearance={{
-              elements: {
-                avatarBox: "w-8 h-8"
-              }
-            }} />
+          <div className="flex items-center gap-4">
+            <ConnectTelegram />
+            <div className="p-1 rounded-full bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-colors">
+              <UserButton appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8"
+                }
+              }} />
+            </div>
           </div>
         </SignedIn>
         <SignedOut>
@@ -68,15 +82,26 @@ export default async function Home() {
             <span className="text-xs font-medium text-white/60 tracking-wide uppercase">System Online</span>
           </div>
 
-          <h1 className="text-7xl md:text-8xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40 drop-shadow-sm">
-            Antinote
-          </h1>
+          <SignedIn>
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40 drop-shadow-sm">
+              {greeting}
+            </h1>
+            <p className="text-xl text-white/40 font-light">
+              Ready to capture your thoughts?
+            </p>
+          </SignedIn>
 
-          <p className="text-xl md:text-2xl text-white/60 max-w-lg font-light leading-relaxed mb-8">
-            Your second brain for <span className="text-white font-normal">voice and handwriting</span>.
-            <br />
-            Ergonomic, efficient capture — structured in seconds.
-          </p>
+          <SignedOut>
+            <h1 className="text-7xl md:text-8xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-white to-white/40 drop-shadow-sm">
+              Antinote
+            </h1>
+
+            <p className="text-xl md:text-2xl text-white/60 max-w-lg font-light leading-relaxed mb-8">
+              Your second brain for <span className="text-white font-normal">voice and handwriting</span>.
+              <br />
+              Ergonomic, efficient capture — structured in seconds.
+            </p>
+          </SignedOut>
 
           <Link
             href="/history"

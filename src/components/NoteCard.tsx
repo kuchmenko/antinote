@@ -2,10 +2,16 @@ import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { CheckCircle2, Lightbulb, AlertCircle, Calendar, Sparkles } from "lucide-react";
 import clsx from "clsx";
 import { StructuredData } from "@/lib/services/types";
-import { MouseEvent } from "react";
+import { MouseEvent, useState } from "react";
+import CardActions from "./CardActions";
+import EditModal from "./EditModal";
+import ImproveModal from "./ImproveModal";
 
 interface NoteCardProps {
+    id: string;
     data: StructuredData;
+    onUpdate?: (id: string, updatedData: Partial<StructuredData>) => void;
+    onDelete?: (id: string) => void;
 }
 
 const iconMap = {
@@ -49,9 +55,13 @@ const typeStyles = {
     },
 };
 
-export default function NoteCard({ data }: NoteCardProps) {
+export default function NoteCard({ id, data, onUpdate, onDelete }: NoteCardProps) {
     const Icon = iconMap[data.type] || Sparkles;
     const styles = typeStyles[data.type] || typeStyles.unknown;
+
+    // Modal states
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isImproveModalOpen, setIsImproveModalOpen] = useState(false);
 
     // 3D Tilt Logic
     const x = useMotionValue(0);
@@ -77,6 +87,45 @@ export default function NoteCard({ data }: NoteCardProps) {
     const handleMouseLeave = () => {
         x.set(0);
         y.set(0);
+    };
+
+    // Action handlers
+    const handleDelete = () => {
+        if (onDelete && confirm("Are you sure you want to delete this entry?")) {
+            onDelete(id);
+        }
+    };
+
+    const handleEditSave = (updatedData: Partial<StructuredData>) => {
+        if (onUpdate) {
+            onUpdate(id, updatedData);
+        }
+        setIsEditModalOpen(false);
+    };
+
+    const handleImprove = async (instruction: string): Promise<StructuredData> => {
+        // Call the improve API endpoint
+        const response = await fetch("/api/improve", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                entryId: id,
+                instruction,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error("Failed to improve entry");
+        }
+
+        const improved = await response.json();
+
+        // Update the entry with improved data
+        if (onUpdate) {
+            onUpdate(id, improved.structuredData);
+        }
+
+        return improved.structuredData;
     };
 
     return (
@@ -115,11 +164,12 @@ export default function NoteCard({ data }: NoteCardProps) {
                         </div>
                         <span className="text-xs font-bold uppercase tracking-[0.2em] text-white/50">{data.type}</span>
                     </div>
-                    <div className="flex gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                        <div className="w-1.5 h-1.5 rounded-full bg-white/20" />
-                    </div>
+                    <CardActions
+                        onDelete={handleDelete}
+                        onEdit={() => setIsEditModalOpen(true)}
+                        onImprove={() => setIsImproveModalOpen(true)}
+                        typeClass={styles}
+                    />
                 </div>
 
                 <p className="text-xl md:text-2xl font-light leading-relaxed text-white/90 mb-8 font-sans">
@@ -149,6 +199,20 @@ export default function NoteCard({ data }: NoteCardProps) {
                     </div>
                 )}
             </div>
+
+            {/* Modals */}
+            <EditModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSave={handleEditSave}
+                currentData={data}
+            />
+            <ImproveModal
+                isOpen={isImproveModalOpen}
+                onClose={() => setIsImproveModalOpen(false)}
+                onImprove={handleImprove}
+                currentData={data}
+            />
         </motion.div>
     );
 }

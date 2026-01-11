@@ -80,7 +80,7 @@ export default function HandwritingInput() {
                         placeholder="Write as if it were paper — short sparks or long streams. We will organize it for you."
                         className={clsx(
                             "w-full min-h-[220px] rounded-2xl border border-white/10 bg-black/40 text-white/80 p-6 text-base leading-relaxed",
-                            "placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/30 transition"
+                            "placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all duration-300 ease-out"
                         )}
                     />
                     <div className="absolute bottom-4 right-5 text-xs text-white/30">
@@ -135,7 +135,7 @@ export default function HandwritingInput() {
                         transition={{ type: "spring", damping: 20, stiffness: 100 }}
                         className="w-full flex justify-center mt-16"
                     >
-                        <NoteCard data={result} />
+                        <NoteCard id="preview" data={result} />
                     </motion.div>
                 )}
             </AnimatePresence>
