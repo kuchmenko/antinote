@@ -8,9 +8,19 @@ export default function SearchButton() {
     const [isOpen, setIsOpen] = useState(false);
     const [shouldAutoFocus, setShouldAutoFocus] = useState(false);
 
-    // Cmd+K or Ctrl+K to toggle search
+    // "/" to toggle search
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
+
+            if (e.key === "/" && !isInput && !e.metaKey && !e.ctrlKey) {
+                e.preventDefault();
+                setShouldAutoFocus(true);
+                setIsOpen(prev => !prev);
+            }
+
+            // Keep Cmd+K as alternative
             if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.code === "KeyK")) {
                 e.preventDefault();
                 setShouldAutoFocus(true);
@@ -36,7 +46,7 @@ export default function SearchButton() {
                 <Search size={14} />
                 <span className="hidden sm:inline">Search</span>
                 <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-white/5 rounded text-white/30 group-hover:text-white/50">
-                    ⌘K
+                    /
                 </kbd>
             </button>
             <SearchOverlay

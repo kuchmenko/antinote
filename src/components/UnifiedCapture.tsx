@@ -14,7 +14,11 @@ import { StructuredData } from "@/lib/services/types";
 
 type ProcessingState = "idle" | "recording" | "transcribing" | "structuring" | "complete" | "error";
 
-export default function UnifiedCapture() {
+interface UnifiedCaptureProps {
+    onEntryCreated?: (entry: { id: string; createdAt: Date; structured: StructuredData }) => void;
+}
+
+export default function UnifiedCapture({ onEntryCreated }: UnifiedCaptureProps) {
     const [draft, setDraft] = useState("");
     const [processingState, setProcessingState] = useState<ProcessingState>("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -117,7 +121,15 @@ export default function UnifiedCapture() {
             });
 
             if (!res.ok) throw new Error("Structuring failed");
-            await res.json();
+            const data = await res.json();
+
+            if (onEntryCreated && data.id) {
+                onEntryCreated({
+                    id: data.id,
+                    createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
+                    structured: data.structured
+                });
+            }
 
             // Success: clear form and show toast
             setDraft("");
@@ -138,22 +150,33 @@ export default function UnifiedCapture() {
         }
     };
 
-    // Global "/" key to focus capture field
+    // Global shortcuts
     useEffect(() => {
         const handleGlobalKey = (e: KeyboardEvent) => {
-            // Only if not in an input/textarea
+            // Only if not in an input/textarea (unless it's a modifier or special key)
             const target = e.target as HTMLElement;
-            if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+            const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
 
-            if (e.key === "/") {
+            // 'i' to focus capture input
+            if (e.key === "i" && !isInput && !e.metaKey && !e.ctrlKey) {
                 e.preventDefault();
                 textareaRef.current?.focus();
+            }
+
+            // 'v' to toggle voice recording
+            if (e.key === "v" && !isInput && !e.metaKey && !e.ctrlKey) {
+                e.preventDefault();
+                if (isRecording) {
+                    stopRecording();
+                } else {
+                    startRecording();
+                }
             }
         };
 
         window.addEventListener("keydown", handleGlobalKey);
         return () => window.removeEventListener("keydown", handleGlobalKey);
-    }, []);
+    }, [isRecording]);
 
     const reset = () => {
         setDraft("");
@@ -251,7 +274,7 @@ export default function UnifiedCapture() {
                             )}
 
                             <p className="text-[10px] text-white/20 mt-4 text-center">
-                                <span className="text-white/30">Enter</span> to capture · <span className="text-white/30">/</span> to focus
+                                <span className="text-white/30">Enter</span> to capture · <span className="text-white/30">i</span> to focus · <span className="text-white/30">v</span> for voice
                             </p>
                         </motion.div>
                     )}

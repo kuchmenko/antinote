@@ -1,6 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/db";
-import { entries, compilations } from "@/db/schema";
+import { entries } from "@/db/schema";
 import { desc, eq, gt, and } from "drizzle-orm";
 import { StructuredData } from "@/lib/services/types";
 import LandingPage from "@/components/home/LandingPage";
@@ -11,7 +11,7 @@ export default async function Home() {
   const user = await currentUser();
 
   let userEntries: { id: string; createdAt: Date; structured: StructuredData }[] = [];
-  let latestCompilation = null;
+
 
   if (userId) {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -41,26 +41,13 @@ export default async function Home() {
       structured: entry.structuredData as unknown as StructuredData,
     }));
 
-    // Fetch latest compilation
-    const comps = await db
-      .select()
-      .from(compilations)
-      .where(and(
-        eq(compilations.userId, userId),
-        eq(compilations.date, today)
-      ))
-      .orderBy(desc(compilations.compiledAt))
-      .limit(1);
-
-    latestCompilation = comps[0] || null;
-
     // Sanitize user object for client component
     const safeUser = user ? {
       firstName: user.firstName,
       imageUrl: user.imageUrl,
     } : null;
 
-    return <Dashboard user={safeUser} userEntries={userEntries} initialCompilation={latestCompilation} />;
+    return <Dashboard user={safeUser} userEntries={userEntries} />;
   }
 
   return <LandingPage />;

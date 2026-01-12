@@ -36,13 +36,15 @@ export async function POST(request: Request) {
 
         // Save to DB if user is authenticated
         let entryId = null;
+        let createdAt = null;
         if (userId) {
             const [inserted] = await db.insert(entries).values({
                 userId,
                 transcript,
                 structuredData,
-            }).returning({ id: entries.id });
+            }).returning({ id: entries.id, createdAt: entries.createdAt });
             entryId = inserted.id;
+            createdAt = inserted.createdAt;
 
             // Generate embedding in background (non-blocking) - Keep this for search
             generateEntryEmbedding(entryId).catch((err) => {
@@ -50,7 +52,7 @@ export async function POST(request: Request) {
             });
         }
 
-        return NextResponse.json({ structured: structuredData, id: entryId });
+        return NextResponse.json({ structured: structuredData, id: entryId, createdAt });
     } catch (error) {
         console.error("Structuring error:", error);
         return NextResponse.json({ error: "Structuring failed" }, { status: 500 });
