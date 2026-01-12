@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { entries } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, lte, and } from "drizzle-orm";
 import { StructuredData } from "@/lib/services/types";
 import DailyFeed from "@/components/DailyFeed";
 import Link from "next/link";
@@ -16,10 +16,17 @@ export default async function HistoryPage() {
     let userEntries: { id: string; createdAt: Date; structured: StructuredData }[] = [];
 
     if (userId) {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
         const data = await db
             .select()
             .from(entries)
-            .where(eq(entries.userId, userId))
+            .where(
+                and(
+                    eq(entries.userId, userId),
+                    lte(entries.createdAt, twentyFourHoursAgo)
+                )
+            )
             .orderBy(desc(entries.createdAt));
 
         userEntries = data.map(entry => ({

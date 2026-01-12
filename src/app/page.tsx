@@ -1,7 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { db } from "@/db";
 import { entries } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, gt, and } from "drizzle-orm";
 import { StructuredData } from "@/lib/services/types";
 import LandingPage from "@/components/home/LandingPage";
 import Dashboard from "@/components/home/Dashboard";
@@ -13,10 +13,17 @@ export default async function Home() {
   let userEntries: { id: string; createdAt: Date; structured: StructuredData }[] = [];
 
   if (userId) {
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
     const data = await db
       .select()
       .from(entries)
-      .where(eq(entries.userId, userId))
+      .where(
+        and(
+          eq(entries.userId, userId),
+          gt(entries.createdAt, twentyFourHoursAgo)
+        )
+      )
       .orderBy(desc(entries.createdAt));
 
     userEntries = data.map(entry => ({

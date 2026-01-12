@@ -102,11 +102,7 @@ export default function DailyFeed({ entries: initialEntries }: DailyFeedProps) {
                 ))}
             </div>
 
-            <div className="flex items-center justify-center mb-16 space-x-4">
-                <div className="h-px w-12 bg-gradient-to-r from-transparent to-white/20" />
-                <h2 className="text-sm font-medium uppercase tracking-[0.3em] text-white/40">Stream</h2>
-                <div className="h-px w-12 bg-gradient-to-l from-transparent to-white/20" />
-            </div>
+
 
             <div className="flex flex-col items-center gap-12 min-h-[400px]">
                 <AnimatePresence mode="popLayout">
@@ -142,7 +138,7 @@ export default function DailyFeed({ entries: initialEntries }: DailyFeedProps) {
                         animate={{ opacity: 1 }}
                         className="text-white/20 text-sm font-mono mt-12"
                     >
-                        No entries found.
+                        Nothing yet. Start capturing!
                     </motion.div>
                 )}
             </div>

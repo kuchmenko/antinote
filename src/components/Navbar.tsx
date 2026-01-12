@@ -11,6 +11,12 @@ export default function Navbar() {
             </Link>
 
             <div className="flex items-center gap-4">
+                <Link
+                    href="/history"
+                    className="text-white/40 hover:text-white text-sm font-medium transition-colors"
+                >
+                    History
+                </Link>
                 <ConnectTelegram />
                 <div className="p-1 rounded-full bg-white/5 backdrop-blur-md border border-white/10 hover:bg-white/10 transition-colors">
                     <UserButton appearance={{

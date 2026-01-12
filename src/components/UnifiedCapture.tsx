@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Mic, Square, Loader2, Send, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import clsx from "clsx";
@@ -8,6 +8,8 @@ import Button from "./ui/Button";
 import Card from "./ui/Card";
 import Textarea from "./ui/Textarea";
 import NoteCard from "./NoteCard";
+import VoiceVisualizer from "./VoiceVisualizer";
+import { useToast } from "./ui/Toast";
 import { StructuredData } from "@/lib/services/types";
 
 type ProcessingState = "idle" | "recording" | "transcribing" | "structuring" | "complete" | "error";
@@ -17,15 +19,15 @@ export default function UnifiedCapture() {
     const [processingState, setProcessingState] = useState<ProcessingState>("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [result, setResult] = useState<StructuredData | null>(null);
+    const { showToast } = useToast();
 
-    // Voice recording refs
+    // Refs
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
-    const dataArrayRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animationFrameRef = useRef<number>(0);
+    const captureButtonRef = useRef<HTMLButtonElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const isRecording = processingState === "recording";
     const isProcessing = processingState === "transcribing" || processingState === "structuring";
@@ -48,7 +50,6 @@ export default function UnifiedCapture() {
             analyserRef.current = audioContextRef.current.createAnalyser();
             analyserRef.current.fftSize = 256;
             source.connect(analyserRef.current);
-            dataArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
 
             mediaRecorderRef.current.ondataavailable = (e) => {
                 if (e.data.size > 0) chunksRef.current.push(e.data);
@@ -60,11 +61,9 @@ export default function UnifiedCapture() {
                 handleVoiceProcessing(blob);
                 stream.getTracks().forEach(track => track.stop());
                 audioContextRef.current?.close();
-                cancelAnimationFrame(animationFrameRef.current);
             };
 
             mediaRecorderRef.current.start();
-            drawVisualizer();
         } catch (err) {
             console.error("Mic error:", err);
             setErrorMessage("Microphone access denied.");
@@ -89,7 +88,10 @@ export default function UnifiedCapture() {
             const { transcript } = await transcribeRes.json();
 
             setDraft(transcript);
-            await handleStructure(transcript);
+            setProcessingState("idle");
+
+            // Focus the Capture button after transcription
+            setTimeout(() => captureButtonRef.current?.focus(), 100);
         } catch (error: any) {
             setErrorMessage(error.message || "Something went wrong");
             setProcessingState("error");
@@ -115,10 +117,13 @@ export default function UnifiedCapture() {
             });
 
             if (!res.ok) throw new Error("Structuring failed");
-            const { structured } = await res.json();
+            await res.json();
 
-            setResult(structured);
-            setProcessingState("complete");
+            // Success: clear form and show toast
+            setDraft("");
+            setResult(null);
+            setProcessingState("idle");
+            showToast("Thought captured!", "success");
         } catch (error: any) {
             setErrorMessage(error.message || "Something went wrong");
             setProcessingState("error");
@@ -126,11 +131,29 @@ export default function UnifiedCapture() {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && canSubmit) {
+        // Enter key (without shift for new line) to capture
+        if (e.key === "Enter" && !e.shiftKey && canSubmit) {
             e.preventDefault();
             handleStructure();
         }
     };
+
+    // Global "/" key to focus capture field
+    useEffect(() => {
+        const handleGlobalKey = (e: KeyboardEvent) => {
+            // Only if not in an input/textarea
+            const target = e.target as HTMLElement;
+            if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
+
+            if (e.key === "/") {
+                e.preventDefault();
+                textareaRef.current?.focus();
+            }
+        };
+
+        window.addEventListener("keydown", handleGlobalKey);
+        return () => window.removeEventListener("keydown", handleGlobalKey);
+    }, []);
 
     const reset = () => {
         setDraft("");
@@ -139,47 +162,7 @@ export default function UnifiedCapture() {
         setErrorMessage(null);
     };
 
-    // Visualizer drawing
-    const drawVisualizer = () => {
-        if (!canvasRef.current || !analyserRef.current || !dataArrayRef.current) return;
 
-        const canvas = canvasRef.current;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const draw = () => {
-            if (processingState !== "recording") return;
-            animationFrameRef.current = requestAnimationFrame(draw);
-            analyserRef.current!.getByteFrequencyData(dataArrayRef.current!);
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const centerY = canvas.height / 2;
-
-            for (let i = 0; i < dataArrayRef.current!.length; i++) {
-                const value = dataArrayRef.current![i];
-                const percent = value / 255;
-                const barHeight = canvas.height * 0.6 * percent;
-                const hue = 200 + (i / dataArrayRef.current!.length) * 60;
-                const lightness = 60 + percent * 40;
-
-                ctx.fillStyle = `hsla(${hue}, 80%, ${lightness}%, ${percent + 0.2})`;
-
-                ctx.beginPath();
-                ctx.roundRect(canvas.width / 2 + i * 3, centerY - barHeight / 2, 2, barHeight, 4);
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.roundRect(canvas.width / 2 - i * 3, centerY - barHeight / 2, 2, barHeight, 4);
-                ctx.fill();
-            }
-        };
-
-        draw();
-    };
-
-    useEffect(() => {
-        if (processingState === "recording") drawVisualizer();
-    }, [processingState]);
 
     return (
         <div className="w-full flex flex-col items-center">
@@ -193,11 +176,14 @@ export default function UnifiedCapture() {
                             exit={{ opacity: 0, height: 0 }}
                             className="flex flex-col items-center justify-center py-8"
                         >
-                            <canvas ref={canvasRef} width={600} height={100} className="w-full h-24 mb-6" />
-                            <p className="text-white/50 text-sm mb-6 animate-pulse">Listening...</p>
+                            <VoiceVisualizer
+                                analyser={analyserRef.current}
+                                isActive={isRecording}
+                            />
+                            <p className="text-white/50 text-sm my-6 animate-pulse">Listening...</p>
                             <Button variant="danger" size="lg" onClick={stopRecording}>
                                 <Square size={18} className="mr-2" fill="currentColor" />
-                                Stop Recording
+                                Done
                             </Button>
                         </motion.div>
                     ) : (
@@ -209,13 +195,14 @@ export default function UnifiedCapture() {
                         >
                             <div className="relative">
                                 <Textarea
+                                    ref={textareaRef}
                                     value={draft}
                                     onChange={(e) => {
                                         setDraft(e.target.value);
                                         if (processingState === "error") setProcessingState("idle");
                                     }}
                                     onKeyDown={handleKeyDown}
-                                    placeholder="What's on your mind? Type here or tap the mic..."
+                                    placeholder="Start typing or use voice..."
                                     rows={4}
                                     disabled={isProcessing}
                                     className="pr-14"
@@ -228,18 +215,19 @@ export default function UnifiedCapture() {
                             <div className="flex items-center justify-between mt-4 gap-4">
                                 <div className="flex items-center gap-3">
                                     <Button
+                                        ref={captureButtonRef}
                                         onClick={() => handleStructure()}
                                         disabled={!canSubmit}
                                         isLoading={isProcessing}
                                         size="md"
                                     >
                                         <Send size={16} className="mr-2" />
-                                        {isProcessing ? "Thinking..." : "Structure"}
+                                        {isProcessing ? "Processing..." : "Capture"}
                                     </Button>
 
                                     {draft && (
                                         <Button variant="ghost" size="sm" onClick={reset}>
-                                            Clear
+                                            Reset
                                         </Button>
                                     )}
                                 </div>
@@ -263,7 +251,7 @@ export default function UnifiedCapture() {
                             )}
 
                             <p className="text-[10px] text-white/20 mt-4 text-center">
-                                <span className="text-white/30">⌘/Ctrl + Enter</span> to structure instantly
+                                <span className="text-white/30">Enter</span> to capture · <span className="text-white/30">/</span> to focus
                             </p>
                         </motion.div>
                     )}

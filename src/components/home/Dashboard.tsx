@@ -30,7 +30,7 @@ export default function Dashboard({ user, userEntries }: DashboardProps) {
             <div className="relative z-10 flex flex-col items-center w-full max-w-2xl px-6 pt-32 pb-20">
                 <PageHeader
                     title={`${greeting}.`}
-                    description="What's on your mind?"
+                    description="Capture your thoughts."
                 />
 
                 {/* Capture Area */}
@@ -43,12 +43,12 @@ export default function Dashboard({ user, userEntries }: DashboardProps) {
                 {/* Feed Section */}
                 <div className="w-full">
                     <div className="flex justify-between items-baseline mb-6">
-                        <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider">Recent Thoughts</h3>
+                        <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider">Today</h3>
                         <Link
                             href="/history"
                             className="text-xs text-white/30 hover:text-white transition-colors"
                         >
-                            View History →
+                            View all →
                         </Link>
                     </div>
                     <DailyFeed entries={userEntries} />
