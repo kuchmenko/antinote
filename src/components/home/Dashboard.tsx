@@ -58,6 +58,9 @@ export default function Dashboard({ user, userEntries }: DashboardProps) {
                     if (prev === -1) return -1; // Stay at capture
                     return Math.max(prev - 1, -1);
                 });
+            } else if (e.key === "i") {
+                e.preventDefault();
+                setFocusedIndex(-1);
             }
         };
 

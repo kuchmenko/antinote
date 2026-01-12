@@ -4,6 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import InteractiveCursor from "@/components/InteractiveCursor";
 import { ToastProvider } from "@/components/ui/Toast";
 import { EntriesProvider } from "@/context/EntriesContext";
+import { ActivityProvider } from "@/context/ActivityContext";
 import GlobalCaptureOverlay from "@/components/GlobalCaptureOverlay";
 import "./globals.css";
 
@@ -30,12 +31,14 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={`${geistSans.variable} ${geistMono.variable} cursor-none`}>
+        <body className={`${geistSans.variable} ${geistMono.variable}`}>
           <ToastProvider>
             <EntriesProvider>
-              <InteractiveCursor />
-              <GlobalCaptureOverlay />
-              {children}
+              <ActivityProvider>
+                {/* <InteractiveCursor /> */}
+                <GlobalCaptureOverlay />
+                {children}
+              </ActivityProvider>
             </EntriesProvider>
           </ToastProvider>
         </body>

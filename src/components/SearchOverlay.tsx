@@ -189,25 +189,23 @@ export default function SearchOverlay({ isOpen, onClose, autoFocus = false }: Se
                 />
 
                 {/* Search Container */}
-                <motion.div
-                    initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
-                    className="flex flex-col w-full max-w-3xl mx-auto h-[85vh] mt-[5vh] px-6 pointer-events-none"
-                >
+                <div className="flex flex-col w-full max-w-3xl mx-auto h-[85vh] mt-[5vh] px-6 pointer-events-none">
                     {/* Search Input Area */}
                     <div className="flex-none pointer-events-auto z-10 mb-6">
                         <div className="relative group shadow-2xl">
                             <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-500/20 via-blue-500/20 to-cyan-500/20 rounded-2xl blur-lg opacity-0 group-focus-within:opacity-100 transition-opacity" />
-                            <div className="relative flex items-center bg-[#111111] border border-white/10 rounded-2xl overflow-hidden shadow-inner">
-                                <div className="flex items-center justify-center w-14 h-14">
+                            <motion.div
+                                layoutId="search-button-container"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                className="relative flex items-center bg-[#111111] border border-white/10 rounded-2xl overflow-hidden shadow-inner"
+                            >
+                                <motion.div layoutId="search-icon" className="flex items-center justify-center w-14 h-14">
                                     {isSearching ? (
                                         <Loader2 size={20} className="text-white/50 animate-spin" />
                                     ) : (
                                         <Search size={20} className="text-white/50" />
                                     )}
-                                </div>
+                                </motion.div>
                                 <input
                                     ref={inputRef}
                                     type="text"
@@ -239,10 +237,15 @@ export default function SearchOverlay({ isOpen, onClose, autoFocus = false }: Se
                                         <Mic size={20} />
                                     </button>
                                 )}
-                            </div>
+                            </motion.div>
                         </div>
                         {/* Hints */}
-                        <div className="flex items-center justify-center gap-4 mt-3 text-[10px] text-white/40">
+                        <motion.div
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2, duration: 0.4 }}
+                            className="flex items-center justify-center gap-4 mt-3 text-[10px] text-white/40"
+                        >
                             <span className="flex items-center gap-1.5">
                                 <Sparkles size={10} className="text-purple-400/70" />
                                 Semantic search enabled
@@ -251,7 +254,7 @@ export default function SearchOverlay({ isOpen, onClose, autoFocus = false }: Se
                             <span>
                                 <kbd className="px-1.5 py-0.5 bg-white/10 rounded text-white/50 font-sans">Esc</kbd> to close
                             </span>
-                        </div>
+                        </motion.div>
                     </div>
 
                     {/* Results Area */}
@@ -333,9 +336,9 @@ export default function SearchOverlay({ isOpen, onClose, autoFocus = false }: Se
                             )}
                         </AnimatePresence>
                     </div>
-                </motion.div>
+                </div>
             </motion.div>
-        </AnimatePresence>,
+        </AnimatePresence >,
         document.body
     );
 }

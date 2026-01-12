@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { motion, useMotionValue, useSpring, AnimatePresence } from "framer-motion";
+import { useEffect, useState, useRef } from "react";
+import {
+    motion,
+    useMotionValue,
+    useSpring,
+    useVelocity,
+    useTransform,
+    useMotionTemplate
+} from "framer-motion";
 
 interface HoverState {
     x: number;
@@ -12,50 +19,99 @@ interface HoverState {
 }
 
 export default function InteractiveCursor() {
-    const [hoverState, setHoverState] = useState<HoverState | null>(null);
+    const [isHovering, setIsHovering] = useState(false);
+    const hoverRef = useRef<HoverState | null>(null);
 
-    // Mouse position for the dot
+    // Raw mouse position
     const mouseX = useMotionValue(-100);
     const mouseY = useMotionValue(-100);
 
-    // Smooth springs for the dot - faster and more responsive
-    const springConfig = { damping: 20, stiffness: 800, mass: 0.5 };
-    const dotX = useSpring(mouseX, springConfig);
-    const dotY = useSpring(mouseY, springConfig);
+    // Smooth physics for the cursor
+    // Damping 30/Stiffness 350 gives a nice "heavy" but responsive feel
+    const springConfig = { damping: 30, stiffness: 350, mass: 0.5 };
+    const cursorX = useSpring(mouseX, springConfig);
+    const cursorY = useSpring(mouseY, springConfig);
 
-    // Smooth springs for the ring (when not hovering) - more fluid motion
-    const trailConfig = { damping: 22, stiffness: 250, mass: 0.6 };
-    const trailX = useSpring(mouseX, trailConfig);
-    const trailY = useSpring(mouseY, trailConfig);
+    // Velocity for squash and stretch
+    const velocityX = useVelocity(cursorX);
+    const velocityY = useVelocity(cursorY);
+
+    // Calculate rotation based on movement direction
+    const rotation = useTransform([velocityX, velocityY], ([vx, vy]: number[]) => {
+        if (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) return 0;
+        return Math.atan2(vy, vx) * (180 / Math.PI);
+    });
+
+    // Squash and stretch based on total velocity magnitude
+    const scaleX = useTransform(
+        [velocityX, velocityY],
+        ([vx, vy]: number[]) => {
+            const speed = Math.sqrt(vx * vx + vy * vy);
+            return Math.min(1 + speed * 0.0005, 1.3); // Stretch up to 1.3x
+        }
+    );
+
+    const scaleY = useTransform(
+        [velocityX, velocityY],
+        ([vx, vy]: number[]) => {
+            const speed = Math.sqrt(vx * vx + vy * vy);
+            return Math.max(1 - speed * 0.0005, 0.8); // Squash down to 0.8x
+        }
+    );
 
     useEffect(() => {
         const moveCursor = (e: MouseEvent) => {
-            mouseX.set(e.clientX);
-            mouseY.set(e.clientY);
+            const { clientX, clientY } = e;
+
+            if (hoverRef.current) {
+                // Magnetic Logic
+                const { x, y, width, height } = hoverRef.current;
+                const centerX = x + width / 2;
+                const centerY = y + height / 2;
+
+                // Calculate distance from center
+                const dist = { x: clientX - centerX, y: clientY - centerY };
+
+                // Apply magnetic pull (0.1 means strong pull to center, 0.3 means weaker)
+                // We want the cursor to stick to the button but move slightly with the mouse
+                const magneticX = centerX + dist.x * 0.2;
+                const magneticY = centerY + dist.y * 0.2;
+
+                mouseX.set(magneticX);
+                mouseY.set(magneticY);
+            } else {
+                mouseX.set(clientX);
+                mouseY.set(clientY);
+            }
         };
 
         const handleInteraction = (target: HTMLElement) => {
-            const interactive = target.closest("button, a, [role='button'], input, textarea");
+            const interactive = target.closest("button, a, [role='button'], input, textarea, [data-interactive='true']");
 
             if (interactive) {
                 const rect = interactive.getBoundingClientRect();
                 const style = window.getComputedStyle(interactive);
 
-                setHoverState({
+                hoverRef.current = {
                     x: rect.left,
                     y: rect.top,
                     width: rect.width,
                     height: rect.height,
                     radius: style.borderRadius === "0px" ? "12px" : style.borderRadius,
-                });
+                };
+                setIsHovering(true);
             } else {
-                setHoverState(null);
+                hoverRef.current = null;
+                setIsHovering(false);
             }
         };
 
         const handleMouseOver = (e: MouseEvent) => handleInteraction(e.target as HTMLElement);
         const handleFocus = (e: FocusEvent) => handleInteraction(e.target as HTMLElement);
-        const handleBlur = () => setHoverState(null);
+        const handleBlur = () => {
+            hoverRef.current = null;
+            setIsHovering(false);
+        };
 
         window.addEventListener("mousemove", moveCursor);
         window.addEventListener("mouseover", handleMouseOver, { passive: true });
@@ -72,47 +128,48 @@ export default function InteractiveCursor() {
 
     return (
         <>
-            {/* Main Cursor Dot - Hides when hovering */}
+            {/* Main Cursor Dot - Morphs into the magnetic box */}
             <motion.div
-                className="fixed top-0 left-0 w-3 h-3 bg-white rounded-full pointer-events-none z-[9999] mix-blend-difference"
+                className="fixed top-0 left-0 pointer-events-none z-[9999] mix-blend-difference"
                 style={{
-                    x: dotX,
-                    y: dotY,
+                    x: cursorX,
+                    y: cursorY,
+                    translateX: "-50%",
+                    translateY: "-50%",
+                    rotate: isHovering ? 0 : rotation,
+                    scaleX: isHovering ? 1 : scaleX,
+                    scaleY: isHovering ? 1 : scaleY,
+                }}
+                animate={{
+                    width: isHovering && hoverRef.current ? hoverRef.current.width : 12,
+                    height: isHovering && hoverRef.current ? hoverRef.current.height : 12,
+                    borderRadius: isHovering && hoverRef.current ? hoverRef.current.radius : "50%",
+                    backgroundColor: isHovering ? "rgba(255, 255, 255, 0)" : "rgba(255, 255, 255, 1)",
+                    border: isHovering ? "1px solid rgba(255, 255, 255, 0.5)" : "0px solid rgba(255, 255, 255, 0)",
+                    opacity: 1,
+                }}
+                transition={{
+                    type: "spring",
+                    damping: 25,
+                    stiffness: 300,
+                    mass: 0.5
+                }}
+            />
+
+            {/* Subtle Trail / Ghost (Only visible when moving fast and not hovering) */}
+            <motion.div
+                className="fixed top-0 left-0 w-3 h-3 bg-white/30 rounded-full pointer-events-none z-[9998] mix-blend-difference"
+                style={{
+                    x: cursorX,
+                    y: cursorY,
                     translateX: "-50%",
                     translateY: "-50%",
                 }}
                 animate={{
-                    scale: hoverState ? 0 : 1,
-                    opacity: hoverState ? 0 : 1,
+                    scale: isHovering ? 0 : 0.8,
+                    opacity: isHovering ? 0 : 0.5,
                 }}
-                transition={{
-                    duration: 0.15,
-                    ease: "easeOut",
-                }}
-            />
-
-            {/* Trailing Ring / Wrap-around Box */}
-            <motion.div
-                className="fixed top-0 left-0 border border-white/40 pointer-events-none z-[9998] mix-blend-difference"
-                style={{
-                    x: hoverState ? hoverState.x : trailX,
-                    y: hoverState ? hoverState.y : trailY,
-                }}
-                animate={{
-                    width: hoverState ? hoverState.width : 40,
-                    height: hoverState ? hoverState.height : 40,
-                    borderRadius: hoverState ? hoverState.radius : "50%",
-                    translateX: hoverState ? 0 : "-50%",
-                    translateY: hoverState ? 0 : "-50%",
-                    borderColor: hoverState ? "rgba(255, 255, 255, 0.6)" : "rgba(255, 255, 255, 0.3)",
-                }}
-                transition={{
-                    type: "spring",
-                    damping: 28,
-                    stiffness: 350,
-                    mass: 0.4,
-                    restDelta: 0.001,
-                }}
+                transition={{ duration: 0.1 }}
             />
         </>
     );

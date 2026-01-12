@@ -19,7 +19,7 @@ export default async function CompilationsPage() {
         .select()
         .from(compilations)
         .where(eq(compilations.userId, userId))
-        .orderBy(desc(compilations.date));
+        .orderBy(desc(compilations.compiledAt));
 
     return (
         <main className="relative min-h-screen w-full overflow-hidden flex flex-col items-center bg-black">

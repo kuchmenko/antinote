@@ -8,6 +8,7 @@ import NoteCard from "./NoteCard";
 import { useToast } from "./ui/Toast";
 import { StructuredData } from "@/lib/services/types";
 import SmartInput from "./SmartInput";
+import { useActivity } from "@/context/ActivityContext";
 
 type ProcessingState = "idle" | "recording" | "transcribing" | "structuring" | "complete" | "error";
 
@@ -25,6 +26,8 @@ export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, on
     const [result, setResult] = useState<StructuredData | null>(null);
     const { showToast } = useToast();
 
+    const { setActivity } = useActivity();
+
     // Refs
     const captureButtonRef = useRef<HTMLButtonElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -41,6 +44,7 @@ export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, on
 
         try {
             setProcessingState("structuring");
+            setActivity("transcribing"); // Use transcribing color for structuring too
             setErrorMessage(null);
 
             const res = await fetch("/api/structure", {
@@ -64,10 +68,12 @@ export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, on
             setDraft("");
             setResult(null);
             setProcessingState("idle");
+            setActivity("idle");
             showToast("Thought captured!", "success");
         } catch (error: any) {
             setErrorMessage(error.message || "Something went wrong");
             setProcessingState("error");
+            setActivity("idle");
         }
     };
 
@@ -77,6 +83,7 @@ export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, on
         setDraft("");
         setResult(null);
         setProcessingState("idle");
+        setActivity("idle");
         setErrorMessage(null);
     };
 

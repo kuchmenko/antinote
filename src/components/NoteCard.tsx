@@ -165,7 +165,7 @@ export default function NoteCard({ id, data, onUpdate, onDelete, isSelected, onE
                                 isProcessing={false}
                                 buttonText="Save"
                                 autoFocus
-                                textareaClassName="text-xl md:text-2xl font-serif font-medium leading-relaxed text-white/90 selection:bg-white/20 !bg-transparent !border-none !p-0 !m-0 !shadow-none !outline-none !ring-0 !ring-offset-0 focus:!ring-0 focus:!ring-offset-0 focus:!outline-none hover:!border-none hover:!ring-0 resize-none text-center"
+                                textareaClassName="text-lg md:text-xl font-serif font-medium leading-relaxed text-white/90 selection:bg-white/20 !bg-transparent !border-none !p-0 !m-0 !shadow-none !outline-none !ring-0 !ring-offset-0 focus:!ring-0 focus:!ring-offset-0 focus:!outline-none hover:!border-none hover:!ring-0 resize-none text-center"
                                 onEscape={onEditCancel}
                             />
                         </motion.div>
@@ -177,7 +177,7 @@ export default function NoteCard({ id, data, onUpdate, onDelete, isSelected, onE
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
                         >
-                            <p className="text-xl md:text-2xl font-serif font-medium leading-relaxed text-white/90 mb-4 selection:bg-white/20">
+                            <p className="text-lg md:text-xl font-serif font-medium leading-relaxed text-white/90 mb-4 selection:bg-white/20">
                                 {data.content}
                             </p>
                         </motion.div>

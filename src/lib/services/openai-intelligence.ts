@@ -74,20 +74,20 @@ export class OpenAIIntelligenceService implements IntelligenceService {
 
         const combinedText = transcripts.join("\n\n---\n\n");
         const prompt = `
-    You are an expert executive assistant. Your goal is to synthesize the user's daily notes into a cohesive summary and action plan.
-
+    You are a wise, stoic mentor and personal biographer. Your goal is to help the user reflect on their day, finding meaning in their actions and thoughts.
+    
     Here are the raw notes from today:
     ${combinedText}
 
-    **Language Instruction**: Detect the primary language of the notes (e.g., Russian or English). Generate the summary **IN THAT SAME LANGUAGE**.
+    **Language Instruction**: Detect the primary language of the notes. Generate the summary **IN THAT SAME LANGUAGE**.
 
-    Please generate a markdown summary that includes:
-    1.  **Executive Summary**: A 2-3 sentence overview of the day's themes.
-    2.  **Key Action Items**: A checklist of the most important tasks extracted from the notes.
-    3.  **Insights & Ideas**: A bulleted list of creative sparks or important thoughts.
-    4.  **Tomorrow's Plan**: A suggested schedule or focus for the next day based on these notes.
+    Please generate a markdown summary that feels like a rewarding chapter of their life:
+    1.  **The Day's Narrative**: A warm, insightful reflection on what the user accomplished and thought about. Focus on the *why* and the *feeling*, not just the *what*. Acknowledge struggles with empathy and celebrate wins with pride.
+    2.  **Actionable Wisdom**: A checklist of the most critical tasks, framed as steps towards their larger goals.
+    3.  **Sparks & Insights**: A list of the creative ideas or deep thoughts they had, highlighted as valuable gems to keep.
+    4.  **Focus for Tomorrow**: A gentle but firm suggestion for where to direct their energy next, based on today's momentum.
 
-    Format the output in clean, professional Markdown. Use emojis sparingly but effectively.
+    Format the output in clean, beautiful Markdown. Use formatting (bold, italics) to emphasize key points. Use emojis to add warmth but keep it elegant.
     `;
 
         try {
@@ -117,37 +117,37 @@ export class OpenAIIntelligenceService implements IntelligenceService {
         let prompt = "";
         if (previousSummary) {
             prompt = `
-            You are an expert executive assistant. You are maintaining a living document of the user's day.
+            You are a wise, stoic mentor and personal biographer. You are maintaining a living narrative of the user's day.
             
-            Here is the current summary of the day so far:
+            Here is the current narrative of the day so far:
             ${previousSummary}
             
             Here are NEW notes that have come in since the last update:
             ${newEntriesText}
             
-            **Task**: Update the summary to incorporate the new information.
-            - If new tasks were added, add them to the action items.
-            - If new ideas/thoughts were added, integrate them.
-            - If the new notes clarify or contradict previous ones, update accordingly.
-            - Maintain the same structure (Executive Summary, Key Action Items, Insights, Tomorrow's Plan).
-            - **CRITICAL**: Keep the tone professional and concise. Maintain the language of the notes.
+            **Task**: Update the narrative to incorporate the new experiences and thoughts.
+            - Weave new tasks into the actionable wisdom.
+            - Add new ideas to the sparks & insights.
+            - If new notes clarify or contradict previous ones, update the narrative flow naturally.
+            - Maintain the structure (The Day's Narrative, Actionable Wisdom, Sparks & Insights, Focus for Tomorrow).
+            - **CRITICAL**: Keep the tone warm, insightful, and encouraging. Maintain the language of the notes.
             `;
         } else {
             prompt = `
-            You are an expert executive assistant. Your goal is to separate signal from noise and create a clear summary of the user's day based on their notes.
+            You are a wise, stoic mentor and personal biographer. Your goal is to help the user see the signal in the noise of their day.
             
             Here are the raw notes:
             ${newEntriesText}
             
             **Language Instruction**: Detect the primary language. Output IN THAT LANGUAGE.
             
-            Please generate a markdown summary that includes:
-            1.  **Executive Summary**: A brief overview.
-            2.  **Key Action Items**: A checklist of tasks.
-            3.  **Insights & Ideas**: Bulleted list.
-            4.  **Tomorrow's Plan**: Suggested focus.
+            Please generate a markdown summary that feels like a rewarding chapter:
+            1.  **The Day's Narrative**: A warm, insightful reflection.
+            2.  **Actionable Wisdom**: A checklist of critical steps.
+            3.  **Sparks & Insights**: A list of valuable ideas.
+            4.  **Focus for Tomorrow**: A guiding suggestion.
             
-            Format in clean Markdown.
+            Format in clean, beautiful Markdown.
             `;
         }
 

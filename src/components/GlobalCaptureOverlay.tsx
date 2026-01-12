@@ -6,16 +6,22 @@ import UnifiedCapture from "./UnifiedCapture";
 import { useEntries } from "@/context/EntriesContext";
 import { X } from "lucide-react";
 
+import { usePathname } from "next/navigation";
+
 export default function GlobalCaptureOverlay() {
     const [isOpen, setIsOpen] = useState(false);
     const { addEntry } = useEntries();
+    const pathname = usePathname();
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             const target = e.target as HTMLElement;
             const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
 
-            if (e.key === "i" && !isInput && !e.metaKey && !e.ctrlKey) {
+            if (e.key === "i" && !isInput && !e.metaKey && !e.ctrlKey && !e.defaultPrevented) {
+                // Don't open on home page (handled by Dashboard)
+                if (pathname === "/") return;
+
                 e.preventDefault();
                 setIsOpen(true);
             }
@@ -28,7 +34,7 @@ export default function GlobalCaptureOverlay() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [isOpen]);
+    }, [isOpen, pathname]);
 
     const handleEntryCreated = (entry: any) => {
         addEntry(entry);

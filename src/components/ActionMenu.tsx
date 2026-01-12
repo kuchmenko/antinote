@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Loader2, Home, CheckSquare, BookOpen, History as HistoryIcon } from "lucide-react";
+import { Sparkles, Loader2, Home, CheckSquare, BookOpen, History as HistoryIcon, User } from "lucide-react";
 import Link from "next/link";
 import clsx from "clsx";
 import { useRouter } from "next/navigation";
@@ -58,6 +58,14 @@ export default function ActionMenu({ isOpen, onClose, onCompile, isCompiling }: 
             href: '/history',
             label: 'History',
             icon: HistoryIcon,
+            section: 'Navigation'
+        },
+        {
+            id: 'profile',
+            type: 'link',
+            href: '/profile',
+            label: 'Profile & Settings',
+            icon: User,
             section: 'Navigation'
         },
         {
@@ -140,13 +148,12 @@ export default function ActionMenu({ isOpen, onClose, onCompile, isCompiling }: 
                     />
 
                     {/* Menu */}
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                        className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
-                    >
-                        <div className="w-[400px] bg-[#1C1C1E] border border-white/10 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[80vh]">
+                    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+                        <motion.div
+                            layoutId="action-menu-container"
+                            transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            className="w-[400px] bg-[#1C1C1E] border border-white/10 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[80vh]"
+                        >
                             {/* Header & Search */}
                             <div className="p-3 border-b border-white/5 flex flex-col gap-3">
                                 <div className="flex items-center justify-between px-1">
@@ -255,8 +262,8 @@ export default function ActionMenu({ isOpen, onClose, onCompile, isCompiling }: 
                                     </div>
                                 )}
                             </div>
-                        </div>
-                    </motion.div>
+                        </motion.div>
+                    </div>
                 </>
             )}
         </AnimatePresence>

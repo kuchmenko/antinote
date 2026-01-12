@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import NoteCard from "./NoteCard";
 import { StructuredData } from "@/lib/services/types";
 import ImproveModal from "./ImproveModal";
+import DeletionPrompt from "./DeletionPrompt";
 import clsx from "clsx";
 
 interface DailyFeedProps {
@@ -18,6 +19,7 @@ interface DailyFeedProps {
 export default function DailyFeed({ entries, onDelete, onUpdate, focusedIndex, setFocusedIndex }: DailyFeedProps) {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [improvingId, setImprovingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const entryRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -49,7 +51,7 @@ export default function DailyFeed({ entries, onDelete, onUpdate, focusedIndex, s
                 // But let's just allow it to reach the switch.
             }
 
-            if ((isInput || editingId || improvingId) && e.key !== "Escape") return; // Don't trigger shortcuts if input focused or modal open (except Escape)
+            if ((isInput || editingId || improvingId || deletingId) && e.key !== "Escape") return; // Don't trigger shortcuts if input focused or modal open (except Escape)
 
             if (entries.length === 0 || focusedIndex === null || focusedIndex < 0) return;
 
@@ -65,9 +67,7 @@ export default function DailyFeed({ entries, onDelete, onUpdate, focusedIndex, s
                     if (!e.shiftKey) {
                         e.preventDefault();
                         const id = entries[focusedIndex].id;
-                        if (confirm("Are you sure you want to delete this entry?")) {
-                            onDelete(id);
-                        }
+                        setDeletingId(id);
                     }
                     break;
                 case "D": // Delete without prompt
@@ -89,6 +89,10 @@ export default function DailyFeed({ entries, onDelete, onUpdate, focusedIndex, s
                     if (editingId) {
                         e.preventDefault();
                         setEditingId(null);
+                    }
+                    if (deletingId) {
+                        e.preventDefault();
+                        setDeletingId(null);
                     }
                     break;
             }
@@ -146,9 +150,19 @@ export default function DailyFeed({ entries, onDelete, onUpdate, focusedIndex, s
                                     opacity: isBlurred ? 0.3 : 1,
                                     y: 0,
                                     scale: 1,
-                                    filter: isBlurred ? "blur(2px)" : "none"
                                 }}
-                                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                                exit={{
+                                    scale: [1, 0.95, 0.9, 0],
+                                    y: [0, -20, -100, -200],
+                                    opacity: [1, 0.8, 0, 0],
+                                    filter: ["blur(0px)", "blur(0px)", "blur(10px)", "blur(20px) brightness(2)"],
+                                    rotateX: [0, 10, 45, 90],
+                                    transition: {
+                                        duration: 1.2,
+                                        times: [0, 0.3, 0.8, 1],
+                                        ease: "easeInOut"
+                                    }
+                                }}
                                 transition={{ duration: 0.5, ease: "easeOut" }}
                                 className="w-full flex flex-col items-center transition-all duration-500"
                                 ref={el => { entryRefs.current[index] = el; }}
@@ -166,7 +180,7 @@ export default function DailyFeed({ entries, onDelete, onUpdate, focusedIndex, s
                                 <NoteCard
                                     id={entry.id}
                                     data={entry.structured}
-                                    onDelete={onDelete}
+                                    onDelete={() => setDeletingId(entry.id)}
                                     onUpdate={onUpdate}
                                     isSelected={index === focusedIndex && !editingId}
                                     isEditing={isEditing}
@@ -211,6 +225,17 @@ export default function DailyFeed({ entries, onDelete, onUpdate, focusedIndex, s
                     currentData={improvingEntry.structured}
                 />
             )}
+
+            <DeletionPrompt
+                isOpen={!!deletingId}
+                onClose={() => setDeletingId(null)}
+                onConfirm={() => {
+                    if (deletingId) {
+                        onDelete(deletingId);
+                        setDeletingId(null);
+                    }
+                }}
+            />
         </section>
     );
 }

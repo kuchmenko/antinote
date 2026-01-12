@@ -7,6 +7,7 @@ import clsx from "clsx";
 import Button from "./ui/Button";
 import Textarea from "./ui/Textarea";
 import VoiceVisualizer from "./VoiceVisualizer";
+import { useActivity } from "@/context/ActivityContext";
 
 interface SmartInputProps {
     value: string;
@@ -37,6 +38,7 @@ export default function SmartInput({
     onEscape,
     onFocus,
 }: SmartInputProps) {
+    const { setActivity } = useActivity();
     const [isRecording, setIsRecording] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -62,10 +64,20 @@ export default function SmartInput({
         }
     }, [autoFocus, shouldFocus, isRecording]);
 
+    // Auto-resize textarea
+    useEffect(() => {
+        const textarea = textareaRef.current;
+        if (textarea) {
+            textarea.style.height = "auto";
+            textarea.style.height = `${textarea.scrollHeight}px`;
+        }
+    }, [value]);
+
     // Voice recording
     const startRecording = async () => {
         try {
             setIsRecording(true);
+            setActivity("recording");
             setErrorMessage(null);
             onChange(""); // Clear draft on new recording
 
@@ -96,6 +108,7 @@ export default function SmartInput({
             console.error("Mic error:", err);
             setErrorMessage("Microphone access denied.");
             setIsRecording(false);
+            setActivity("idle");
         }
     };
 
@@ -107,6 +120,7 @@ export default function SmartInput({
 
     const handleVoiceProcessing = async (audioBlob: Blob) => {
         try {
+            setActivity("transcribing");
             // We need to notify parent about processing state if possible, 
             // but here we just handle the transcription locally for the input value
             const formData = new FormData();
@@ -118,12 +132,14 @@ export default function SmartInput({
 
             onChange(transcript);
             setIsRecording(false);
+            setActivity("idle");
 
             // Focus textarea after transcription
             setTimeout(() => textareaRef.current?.focus(), 100);
         } catch (error: any) {
             setErrorMessage(error.message || "Something went wrong");
             setIsRecording(false);
+            setActivity("idle");
         }
     };
 
@@ -137,7 +153,19 @@ export default function SmartInput({
 
         if (e.key === "Escape") {
             e.preventDefault();
+            textareaRef.current?.blur();
             onEscape?.();
+            return;
+        }
+
+        // Ctrl+m to toggle voice while focused
+        if (e.key === "m" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
             return;
         }
 
@@ -264,7 +292,7 @@ export default function SmartInput({
                         )}
 
                         <p className="text-[10px] text-white/20 mt-2 text-center">
-                            <span className="text-white/30">Enter</span> to {buttonText.toLowerCase()} · <span className="text-white/30">v</span> for voice
+                            <span className="text-white/30">Enter</span> to {buttonText.toLowerCase()} · <span className="text-white/30">Ctrl+m</span> for voice
                         </p>
                     </motion.div>
                 )}
