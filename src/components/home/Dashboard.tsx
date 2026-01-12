@@ -11,6 +11,7 @@ import AppBackground from "@/components/AppBackground";
 import ReactMarkdown from "react-markdown";
 import ActionMenu from "@/components/ActionMenu";
 import { motion, AnimatePresence } from "framer-motion";
+import DailyCompilation from "@/components/DailyCompilation";
 
 interface DashboardProps {
     user: { firstName: string | null; imageUrl?: string } | null;
@@ -93,17 +94,15 @@ export default function Dashboard({ user, userEntries, initialCompilation }: Das
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="w-full mb-12 p-8 bg-white/5 border border-white/10 rounded-3xl"
+                            className="w-full mb-12"
                         >
-                            <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider mb-6">Daily Compilation</h3>
-                            <div className="prose prose-invert prose-sm max-w-none">
-                                <ReactMarkdown>{compilation.content}</ReactMarkdown>
-                            </div>
-                            <div className="mt-4 pt-4 border-t border-white/5 flex justify-end">
+                            <div className="flex justify-between items-baseline mb-6 px-2">
+                                <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider">Daily Compilation</h3>
                                 <span className="text-[10px] text-white/20 font-mono">
-                                    Last compiled: {new Date(compilation.compiledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(compilation.compiledAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                             </div>
+                            <DailyCompilation content={compilation.content} />
                         </motion.div>
                     )}
                 </AnimatePresence>
