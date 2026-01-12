@@ -1,24 +1,24 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { Mic, Square, Loader2, Send, Sparkles } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import clsx from "clsx";
-import Button from "./ui/Button";
 import Card from "./ui/Card";
-import Textarea from "./ui/Textarea";
 import NoteCard from "./NoteCard";
-import VoiceVisualizer from "./VoiceVisualizer";
 import { useToast } from "./ui/Toast";
 import { StructuredData } from "@/lib/services/types";
+import SmartInput from "./SmartInput";
 
 type ProcessingState = "idle" | "recording" | "transcribing" | "structuring" | "complete" | "error";
 
 interface UnifiedCaptureProps {
     onEntryCreated?: (entry: { id: string; createdAt: Date; structured: StructuredData }) => void;
+    isFocused?: boolean;
+    onEscape?: () => void;
+    onFocus?: () => void;
 }
 
-export default function UnifiedCapture({ onEntryCreated }: UnifiedCaptureProps) {
+export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, onFocus }: UnifiedCaptureProps) {
     const [draft, setDraft] = useState("");
     const [processingState, setProcessingState] = useState<ProcessingState>("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -26,84 +26,13 @@ export default function UnifiedCapture({ onEntryCreated }: UnifiedCaptureProps) 
     const { showToast } = useToast();
 
     // Refs
-    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-    const chunksRef = useRef<Blob[]>([]);
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const analyserRef = useRef<AnalyserNode | null>(null);
     const captureButtonRef = useRef<HTMLButtonElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-    const isRecording = processingState === "recording";
     const isProcessing = processingState === "transcribing" || processingState === "structuring";
-    const canSubmit = draft.trim().length > 0 && !isProcessing && !isRecording;
 
-    // Voice recording
-    const startRecording = async () => {
-        try {
-            setProcessingState("recording");
-            setResult(null);
-            setErrorMessage(null);
-            setDraft("");
-
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorderRef.current = new MediaRecorder(stream);
-
-            // Audio visualization
-            audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-            const source = audioContextRef.current.createMediaStreamSource(stream);
-            analyserRef.current = audioContextRef.current.createAnalyser();
-            analyserRef.current.fftSize = 256;
-            source.connect(analyserRef.current);
-
-            mediaRecorderRef.current.ondataavailable = (e) => {
-                if (e.data.size > 0) chunksRef.current.push(e.data);
-            };
-
-            mediaRecorderRef.current.onstop = async () => {
-                const blob = new Blob(chunksRef.current, { type: "audio/webm" });
-                chunksRef.current = [];
-                handleVoiceProcessing(blob);
-                stream.getTracks().forEach(track => track.stop());
-                audioContextRef.current?.close();
-            };
-
-            mediaRecorderRef.current.start();
-        } catch (err) {
-            console.error("Mic error:", err);
-            setErrorMessage("Microphone access denied.");
-            setProcessingState("error");
-        }
-    };
-
-    const stopRecording = () => {
-        if (mediaRecorderRef.current && isRecording) {
-            mediaRecorderRef.current.stop();
-        }
-    };
-
-    const handleVoiceProcessing = async (audioBlob: Blob) => {
-        try {
-            setProcessingState("transcribing");
-            const formData = new FormData();
-            formData.append("file", audioBlob, "recording.webm");
-
-            const transcribeRes = await fetch("/api/transcribe", { method: "POST", body: formData });
-            if (!transcribeRes.ok) throw new Error("Transcription failed");
-            const { transcript } = await transcribeRes.json();
-
-            setDraft(transcript);
-            setProcessingState("idle");
-
-            // Focus the Capture button after transcription
-            setTimeout(() => captureButtonRef.current?.focus(), 100);
-        } catch (error: any) {
-            setErrorMessage(error.message || "Something went wrong");
-            setProcessingState("error");
-        }
-    };
-
-    const handleStructure = async (text?: string) => {
-        const content = text || draft.trim();
+    const handleStructure = async () => {
+        const content = draft.trim();
         if (!content) {
             setErrorMessage("Add a thought first.");
             setProcessingState("error");
@@ -142,41 +71,7 @@ export default function UnifiedCapture({ onEntryCreated }: UnifiedCaptureProps) 
         }
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        // Enter key (without shift for new line) to capture
-        if (e.key === "Enter" && !e.shiftKey && canSubmit) {
-            e.preventDefault();
-            handleStructure();
-        }
-    };
 
-    // Global shortcuts
-    useEffect(() => {
-        const handleGlobalKey = (e: KeyboardEvent) => {
-            // Only if not in an input/textarea (unless it's a modifier or special key)
-            const target = e.target as HTMLElement;
-            const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
-
-            // 'i' to focus capture input
-            if (e.key === "i" && !isInput && !e.metaKey && !e.ctrlKey) {
-                e.preventDefault();
-                textareaRef.current?.focus();
-            }
-
-            // 'v' to toggle voice recording
-            if (e.key === "v" && !isInput && !e.metaKey && !e.ctrlKey) {
-                e.preventDefault();
-                if (isRecording) {
-                    stopRecording();
-                } else {
-                    startRecording();
-                }
-            }
-        };
-
-        window.addEventListener("keydown", handleGlobalKey);
-        return () => window.removeEventListener("keydown", handleGlobalKey);
-    }, [isRecording]);
 
     const reset = () => {
         setDraft("");
@@ -185,101 +80,23 @@ export default function UnifiedCapture({ onEntryCreated }: UnifiedCaptureProps) 
         setErrorMessage(null);
     };
 
-
-
     return (
-        <div className="w-full flex flex-col items-center">
-            <Card variant="elevated" className="w-full p-6 overflow-hidden">
-                <AnimatePresence mode="wait">
-                    {isRecording ? (
-                        <motion.div
-                            key="recording"
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: "auto" }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="flex flex-col items-center justify-center py-8"
-                        >
-                            <VoiceVisualizer
-                                analyser={analyserRef.current}
-                                isActive={isRecording}
-                            />
-                            <p className="text-white/50 text-sm my-6 animate-pulse">Listening...</p>
-                            <Button variant="danger" size="lg" onClick={stopRecording}>
-                                <Square size={18} className="mr-2" fill="currentColor" />
-                                Done
-                            </Button>
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            key="input"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                        >
-                            <div className="relative">
-                                <Textarea
-                                    ref={textareaRef}
-                                    value={draft}
-                                    onChange={(e) => {
-                                        setDraft(e.target.value);
-                                        if (processingState === "error") setProcessingState("idle");
-                                    }}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder="Start typing or use voice..."
-                                    rows={4}
-                                    disabled={isProcessing}
-                                    className="pr-14"
-                                />
-                                <div className="absolute top-3 right-3 text-[10px] text-white/20 font-mono">
-                                    {draft.length}
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-between mt-4 gap-4">
-                                <div className="flex items-center gap-3">
-                                    <Button
-                                        ref={captureButtonRef}
-                                        onClick={() => handleStructure()}
-                                        disabled={!canSubmit}
-                                        isLoading={isProcessing}
-                                        size="md"
-                                    >
-                                        <Send size={16} className="mr-2" />
-                                        {isProcessing ? "Processing..." : "Capture"}
-                                    </Button>
-
-                                    {draft && (
-                                        <Button variant="ghost" size="sm" onClick={reset}>
-                                            Reset
-                                        </Button>
-                                    )}
-                                </div>
-
-                                <button
-                                    onClick={startRecording}
-                                    disabled={isProcessing}
-                                    className={clsx(
-                                        "group relative w-12 h-12 flex items-center justify-center rounded-full transition-all",
-                                        "bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20",
-                                        "disabled:opacity-50 disabled:cursor-not-allowed"
-                                    )}
-                                    data-interactive="true"
-                                >
-                                    <Mic size={20} className="text-white/70 group-hover:text-white transition-colors" />
-                                </button>
-                            </div>
-
-                            {errorMessage && (
-                                <p className="text-red-400 text-sm mt-3">{errorMessage}</p>
-                            )}
-
-                            <p className="text-[10px] text-white/20 mt-4 text-center">
-                                <span className="text-white/30">Enter</span> to capture · <span className="text-white/30">i</span> to focus · <span className="text-white/30">v</span> for voice
-                            </p>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </Card>
+        <div className="w-full max-w-[600px] mx-auto relative z-50">
+            <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
+                <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl">
+                    <SmartInput
+                        value={draft}
+                        onChange={setDraft}
+                        onSubmit={handleStructure}
+                        isProcessing={isProcessing}
+                        onReset={reset}
+                        shouldFocus={isFocused}
+                        onEscape={onEscape}
+                        onFocus={onFocus}
+                    />
+                </div>
+            </div>
 
             {/* Result */}
             <AnimatePresence>

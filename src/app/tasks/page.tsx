@@ -6,7 +6,7 @@ import { StructuredData } from "@/lib/services/types";
 import Navbar from "@/components/Navbar";
 import PageHeader from "@/components/PageHeader";
 import AppBackground from "@/components/AppBackground";
-import DailyFeed from "@/components/DailyFeed";
+import TasksFeed from "@/components/TasksFeed";
 import { redirect } from "next/navigation";
 
 export default async function TasksPage() {
@@ -58,7 +58,7 @@ export default async function TasksPage() {
                 but for now let's just render it. The user can still see other types if they click filters, 
                 but we are passing only task entries so filters won't show much else.
             */}
-                    <DailyFeed entries={taskEntries} />
+                    <TasksFeed entries={taskEntries} />
                 </div>
             </div>
         </main>

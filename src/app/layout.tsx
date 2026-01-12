@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import InteractiveCursor from "@/components/InteractiveCursor";
 import { ToastProvider } from "@/components/ui/Toast";
+import { EntriesProvider } from "@/context/EntriesContext";
+import GlobalCaptureOverlay from "@/components/GlobalCaptureOverlay";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,8 +32,11 @@ export default function RootLayout({
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} cursor-none`}>
           <ToastProvider>
-            <InteractiveCursor />
-            {children}
+            <EntriesProvider>
+              <InteractiveCursor />
+              <GlobalCaptureOverlay />
+              {children}
+            </EntriesProvider>
           </ToastProvider>
         </body>
       </html>

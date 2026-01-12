@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { entries } from "@/db/schema";
 import { desc, eq, lte, and } from "drizzle-orm";
 import { StructuredData } from "@/lib/services/types";
-import DailyFeed from "@/components/DailyFeed";
+import HistoryFeed from "@/components/HistoryFeed";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -62,7 +62,7 @@ export default async function HistoryPage() {
                     </Link>
                 </PageHeader>
 
-                <DailyFeed entries={userEntries} />
+                <HistoryFeed entries={userEntries} />
             </div>
         </main>
     );

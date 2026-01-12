@@ -31,7 +31,16 @@ export default function ImproveModal({ isOpen, onClose, onImprove, currentData }
             setError(null);
             setIsLoading(false);
         }
-    }, [isOpen]);
+
+        const handleEscape = (e: KeyboardEvent) => {
+            if (e.key === "Escape" && isOpen) {
+                onClose();
+            }
+        };
+
+        window.addEventListener("keydown", handleEscape);
+        return () => window.removeEventListener("keydown", handleEscape);
+    }, [isOpen, onClose]);
 
     const handleImprove = async () => {
         if (!instruction.trim()) {

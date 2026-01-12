@@ -98,12 +98,28 @@ export async function POST(request: Request) {
             ...newEntries.map(e => e.id)
         ];
 
-        const [saved] = await db.insert(compilations).values({
-            userId,
-            date,
-            content: newContent,
-            relatedEntryIds: allEntryIds,
-        }).returning();
+        let saved;
+
+        if (latestCompilation) {
+            // Update existing
+            [saved] = await db
+                .update(compilations)
+                .set({
+                    content: newContent,
+                    relatedEntryIds: allEntryIds,
+                    compiledAt: new Date(), // Update timestamp to now
+                })
+                .where(eq(compilations.id, latestCompilation.id))
+                .returning();
+        } else {
+            // Create new
+            [saved] = await db.insert(compilations).values({
+                userId,
+                date,
+                content: newContent,
+                relatedEntryIds: allEntryIds,
+            }).returning();
+        }
 
         return NextResponse.json({ compilation: saved });
 
