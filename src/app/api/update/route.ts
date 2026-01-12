@@ -25,7 +25,10 @@ export async function PATCH(request: NextRequest) {
 
         // Get current entry to merge updates
         const [currentEntry] = await db
-            .select()
+            .select({
+                id: entries.id,
+                structuredData: entries.structuredData,
+            })
             .from(entries)
             .where(and(eq(entries.id, entryId), eq(entries.userId, userId)))
             .limit(1);

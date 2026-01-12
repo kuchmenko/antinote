@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { MockIntelligenceService } from "@/lib/services/intelligence";
 import { OpenAIIntelligenceService } from "@/lib/services/openai-intelligence";
+import { generateEntryEmbedding } from "@/lib/services/search-service";
 import { db } from "@/db";
 import { entries } from "@/db/schema";
 import { auth } from "@clerk/nextjs/server";
@@ -33,6 +34,11 @@ export async function POST(request: Request) {
                 structuredData,
             }).returning({ id: entries.id });
             entryId = inserted.id;
+
+            // Generate embedding in background (non-blocking)
+            generateEntryEmbedding(entryId).catch((err) => {
+                console.error("[Structure] Failed to generate embedding:", err);
+            });
         }
 
         return NextResponse.json({ structured: structuredData, id: entryId });
@@ -41,3 +47,4 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "Structuring failed" }, { status: 500 });
     }
 }
+

@@ -16,7 +16,13 @@ export default async function Home() {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
     const data = await db
-      .select()
+      .select({
+        id: entries.id,
+        userId: entries.userId,
+        transcript: entries.transcript,
+        structuredData: entries.structuredData,
+        createdAt: entries.createdAt,
+      })
       .from(entries)
       .where(
         and(

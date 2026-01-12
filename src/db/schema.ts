@@ -1,4 +1,18 @@
-import { pgTable, uuid, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, uuid, text, jsonb, timestamp, customType, index } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+
+// Custom type for pgvector
+const vector = customType<{ data: number[]; driverData: string }>({
+    dataType() {
+        return "vector(1536)";
+    },
+    toDriver(value: number[]): string {
+        return `[${value.join(",")}]`;
+    },
+    fromDriver(value: string): number[] {
+        return JSON.parse(value.replace(/^\[/, "[").replace(/\]$/, "]"));
+    },
+});
 
 export const entries = pgTable("entries", {
     id: uuid("id").defaultRandom().primaryKey(),
@@ -6,8 +20,11 @@ export const entries = pgTable("entries", {
     rawAudioUrl: text("raw_audio_url"),
     transcript: text("transcript").notNull(),
     structuredData: jsonb("structured_data").notNull(),
+    embedding: vector("embedding"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+    index("entries_user_id_idx").on(table.userId),
+]);
 
 export const telegramUsers = pgTable("telegram_users", {
     id: uuid("id").defaultRandom().primaryKey(),

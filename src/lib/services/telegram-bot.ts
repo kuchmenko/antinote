@@ -164,7 +164,12 @@ export class TelegramBotService {
         if (!userId) return ctx.reply("Please connect your account first.");
 
         const recentEntries = await db
-            .select()
+            .select({
+                id: entries.id,
+                transcript: entries.transcript,
+                structuredData: entries.structuredData,
+                createdAt: entries.createdAt,
+            })
             .from(entries)
             .where(eq(entries.userId, userId))
             .orderBy(desc(entries.createdAt))
@@ -192,7 +197,9 @@ export class TelegramBotService {
         ctx.sendChatAction("typing");
 
         const recentEntries = await db
-            .select()
+            .select({
+                transcript: entries.transcript,
+            })
             .from(entries)
             .where(eq(entries.userId, userId))
             .orderBy(desc(entries.createdAt))

@@ -12,4 +12,6 @@ export interface StructuredData {
 export interface IntelligenceService {
     structure(transcript: string): Promise<StructuredData>;
     synthesize(transcripts: string[]): Promise<string>;
+    createEmbedding(text: string): Promise<number[]>;
 }
+

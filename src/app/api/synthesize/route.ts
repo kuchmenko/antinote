@@ -18,7 +18,9 @@ export async function POST() {
         // For MVP, we'll just fetch the last 20 entries for the user
         // In a real app, we'd filter by date
         const userEntries = await db
-            .select()
+            .select({
+                transcript: entries.transcript,
+            })
             .from(entries)
             .where(eq(entries.userId, userId))
             .orderBy(desc(entries.createdAt))

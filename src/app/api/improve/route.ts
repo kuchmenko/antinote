@@ -32,7 +32,13 @@ export async function POST(request: NextRequest) {
 
         // Get current entry
         const [currentEntry] = await db
-            .select()
+            .select({
+                id: entries.id,
+                userId: entries.userId,
+                transcript: entries.transcript,
+                structuredData: entries.structuredData,
+                createdAt: entries.createdAt,
+            })
             .from(entries)
             .where(and(eq(entries.id, entryId), eq(entries.userId, userId)))
             .limit(1);

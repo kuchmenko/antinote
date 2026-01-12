@@ -1,5 +1,6 @@
 import { UserButton } from "@clerk/nextjs";
 import ConnectTelegram from "@/components/ConnectTelegram";
+import SearchButton from "@/components/SearchButton";
 import Link from "next/link";
 
 export default function Navbar() {
@@ -11,6 +12,7 @@ export default function Navbar() {
             </Link>
 
             <div className="flex items-center gap-4">
+                <SearchButton />
                 <Link
                     href="/history"
                     className="text-white/40 hover:text-white text-sm font-medium transition-colors"
@@ -29,3 +31,4 @@ export default function Navbar() {
         </header>
     );
 }
+

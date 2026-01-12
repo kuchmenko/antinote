@@ -108,4 +108,20 @@ export class OpenAIIntelligenceService implements IntelligenceService {
             return "Failed to generate synthesis. Please try again later.";
         }
     }
+
+    async createEmbedding(text: string): Promise<number[]> {
+        console.log(`[OpenAI] Creating embedding for: "${text.substring(0, 30)}..."`);
+
+        try {
+            const response = await this.openai.embeddings.create({
+                model: "text-embedding-3-small",
+                input: text,
+            });
+
+            return response.data[0].embedding;
+        } catch (error) {
+            console.error("OpenAI Embedding Error:", error);
+            throw new Error("Failed to create embedding");
+        }
+    }
 }
