@@ -92,7 +92,7 @@ export class OpenAIIntelligenceService implements IntelligenceService {
 
         try {
             const response = await this.openai.chat.completions.create({
-                model: "gpt-5.2",
+                model: "gpt-4o",
                 messages: [
                     { role: "system", content: "You are a helpful assistant that outputs Markdown." },
                     { role: "user", content: prompt }
@@ -106,6 +106,67 @@ export class OpenAIIntelligenceService implements IntelligenceService {
         } catch (error) {
             console.error("OpenAI Synthesis Error:", error);
             return "Failed to generate synthesis. Please try again later.";
+        }
+    }
+
+    async compileDay(newEntries: { content: string; createdAt: Date }[], previousSummary?: string): Promise<string> {
+        console.log(`[OpenAI] Compiling day with ${newEntries.length} new entries...`);
+
+        const newEntriesText = newEntries.map(e => `[${new Date(e.createdAt).toLocaleTimeString()}] ${e.content}`).join("\n");
+
+        let prompt = "";
+        if (previousSummary) {
+            prompt = `
+            You are an expert executive assistant. You are maintaining a living document of the user's day.
+            
+            Here is the current summary of the day so far:
+            ${previousSummary}
+            
+            Here are NEW notes that have come in since the last update:
+            ${newEntriesText}
+            
+            **Task**: Update the summary to incorporate the new information.
+            - If new tasks were added, add them to the action items.
+            - If new ideas/thoughts were added, integrate them.
+            - If the new notes clarify or contradict previous ones, update accordingly.
+            - Maintain the same structure (Executive Summary, Key Action Items, Insights, Tomorrow's Plan).
+            - **CRITICAL**: Keep the tone professional and concise. Maintain the language of the notes.
+            `;
+        } else {
+            prompt = `
+            You are an expert executive assistant. Your goal is to separate signal from noise and create a clear summary of the user's day based on their notes.
+            
+            Here are the raw notes:
+            ${newEntriesText}
+            
+            **Language Instruction**: Detect the primary language. Output IN THAT LANGUAGE.
+            
+            Please generate a markdown summary that includes:
+            1.  **Executive Summary**: A brief overview.
+            2.  **Key Action Items**: A checklist of tasks.
+            3.  **Insights & Ideas**: Bulleted list.
+            4.  **Tomorrow's Plan**: Suggested focus.
+            
+            Format in clean Markdown.
+            `;
+        }
+
+        try {
+            const response = await this.openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    { role: "system", content: "You are a helpful assistant that outputs Markdown." },
+                    { role: "user", content: prompt }
+                ],
+            });
+
+            const content = response.choices[0].message.content;
+            if (!content) throw new Error("No content returned from OpenAI");
+
+            return content;
+        } catch (error) {
+            console.error("OpenAI Compilation Error:", error);
+            throw error;
         }
     }
 

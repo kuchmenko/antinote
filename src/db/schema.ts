@@ -43,9 +43,22 @@ export const connectTokens = pgTable("connect_tokens", {
     createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const compilations = pgTable("compilations", {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id").notNull(), // Clerk ID
+    date: text("date").notNull(), // YYYY-MM-DD
+    compiledAt: timestamp("compiled_at").defaultNow().notNull(),
+    content: text("content").notNull(), // Markdown summary
+    relatedEntryIds: jsonb("related_entry_ids").notNull(), // Array of UUIDs
+}, (table) => [
+    index("compilations_user_id_date_idx").on(table.userId, table.date),
+]);
+
 export type Entry = typeof entries.$inferSelect;
 export type NewEntry = typeof entries.$inferInsert;
 export type TelegramUser = typeof telegramUsers.$inferSelect;
 export type NewTelegramUser = typeof telegramUsers.$inferInsert;
 export type ConnectToken = typeof connectTokens.$inferSelect;
 export type NewConnectToken = typeof connectTokens.$inferInsert;
+export type Compilation = typeof compilations.$inferSelect;
+export type NewCompilation = typeof compilations.$inferInsert;

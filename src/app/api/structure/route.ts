@@ -22,8 +22,17 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No transcript provided" }, { status: 400 });
         }
 
-        const service = getService();
-        const structuredData = await service.structure(transcript);
+        // Fast mode: Skip AI structuring
+        // const service = getService();
+        // const structuredData = await service.structure(transcript);
+
+        const structuredData = {
+            title: "Quick Note",
+            type: "note",
+            content: transcript,
+            tags: [],
+            confidence: 1
+        };
 
         // Save to DB if user is authenticated
         let entryId = null;
@@ -35,7 +44,7 @@ export async function POST(request: Request) {
             }).returning({ id: entries.id });
             entryId = inserted.id;
 
-            // Generate embedding in background (non-blocking)
+            // Generate embedding in background (non-blocking) - Keep this for search
             generateEntryEmbedding(entryId).catch((err) => {
                 console.error("[Structure] Failed to generate embedding:", err);
             });

@@ -27,4 +27,9 @@ export class MockIntelligenceService implements IntelligenceService {
     async synthesize(transcripts: string[]): Promise<string> {
         return `Synthesis of ${transcripts.length} notes: You seem focused on productivity today.`;
     }
+
+    async createEmbedding(text: string): Promise<number[]> {
+        // Return 1536 random zeros/ones (mock embedding) or just empty
+        return new Array(1536).fill(0);
+    }
 }
