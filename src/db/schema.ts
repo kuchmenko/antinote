@@ -166,7 +166,7 @@ export const threads = pgTable("threads", {
     description: text("description"),
     defaultEntityIds: jsonb("default_entity_ids").notNull().$type<string[]>(),
     lastViewedAt: timestamp("last_viewed_at"),
-    lastSnapshotId: ulid("last_snapshot_id").references(() => snapshots.id, { onDelete: "set null" }),
+    lastSnapshotId: ulid("last_snapshot_id"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
     userId: text("user_id").notNull(),
