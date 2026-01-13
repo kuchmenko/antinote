@@ -7,6 +7,7 @@ export interface Entry {
     id: string;
     createdAt: Date;
     structured: StructuredData;
+    pending?: boolean;
 }
 
 interface EntriesContextType {

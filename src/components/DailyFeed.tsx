@@ -9,7 +9,7 @@ import DeletionPrompt from "./DeletionPrompt";
 import clsx from "clsx";
 
 interface DailyFeedProps {
-    entries: { id: string; createdAt: Date; structured: StructuredData }[];
+    entries: { id: string; createdAt: Date; structured: StructuredData; pending?: boolean }[];
     onDelete: (id: string) => void;
     onUpdate: (id: string, updatedData: Partial<StructuredData>) => void;
     focusedIndex: number | null;
@@ -188,6 +188,8 @@ export default function DailyFeed({ entries, onDelete, onUpdate, focusedIndex, s
                                     onEditSubmit={handleEditSave}
                                     onEditCancel={() => setEditingId(null)}
                                     onImproveStart={(id) => setImprovingId(id)}
+                                    pending={entry.pending}
+                                    compact={index > 0}
                                 />
                             </motion.div>
                         );

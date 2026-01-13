@@ -17,9 +17,16 @@ interface DashboardProps {
     userEntries: { id: string; createdAt: Date; structured: StructuredData }[];
 }
 
-export default function Dashboard({ user }: DashboardProps) {
-    const { entries, removeEntry, updateEntry, addEntry } = useEntries();
+export default function Dashboard({ user, userEntries }: DashboardProps) {
+    const { entries, removeEntry, updateEntry, addEntry, setEntries } = useEntries();
     const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+
+    // Initialize entries from server
+    useEffect(() => {
+        if (userEntries && userEntries.length > 0) {
+            setEntries(userEntries);
+        }
+    }, [userEntries, setEntries]);
 
     // Global Navigation Shortcuts
     useEffect(() => {
@@ -114,6 +121,7 @@ export default function Dashboard({ user }: DashboardProps) {
                 <div className="w-full mb-12">
                     <UnifiedCapture
                         onEntryCreated={handleEntryCreated}
+                        onEntryRemoved={removeEntry}
                         isFocused={focusedIndex === -1}
                         onEscape={() => setFocusedIndex(null)}
                         onFocus={() => setFocusedIndex(-1)}

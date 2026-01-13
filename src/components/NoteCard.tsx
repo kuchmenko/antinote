@@ -19,6 +19,8 @@ interface NoteCardProps {
     isEditing?: boolean;
     onEditSubmit?: (content: string) => void;
     onEditCancel?: () => void;
+    pending?: boolean;
+    compact?: boolean;
 }
 
 const iconMap = {
@@ -63,9 +65,9 @@ const typeStyles = {
     },
 };
 
-export default function NoteCard({ id, data, onUpdate, onDelete, isSelected, onEditStart, onImproveStart, isEditing, onEditSubmit, onEditCancel }: NoteCardProps) {
-    const Icon = iconMap[data.type] || Sparkles;
-    const styles = typeStyles[data.type] || typeStyles.unknown;
+export default function NoteCard({ id, data, onUpdate, onDelete, isSelected, onEditStart, onImproveStart, isEditing, onEditSubmit, onEditCancel, pending, compact }: NoteCardProps) {
+    const Icon = pending ? Sparkles : (iconMap[data.type] || Sparkles);
+    const styles = pending ? typeStyles.unknown : (typeStyles[data.type] || typeStyles.unknown);
 
     // 3D Tilt Logic
     const x = useMotionValue(0);
@@ -114,6 +116,56 @@ export default function NoteCard({ id, data, onUpdate, onDelete, isSelected, onE
         }
     };
 
+    // Compact mode rendering
+    if (compact) {
+        return (
+            <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                whileHover={{ x: 4, scale: 1.01 }}
+                transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                className={clsx(
+                    "group w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 cursor-pointer",
+                    "hover:bg-white/5 border border-transparent hover:border-white/10",
+                    "hover:shadow-[0_0_20px_-8px_rgba(255,255,255,0.1)]",
+                    pending && "opacity-50 animate-pulse"
+                )}
+                data-interactive="true"
+            >
+                {/* Icon with subtle pulse on hover */}
+                <motion.div
+                    className={clsx("flex-shrink-0 p-1.5 rounded-md transition-all", styles.bgAccent)}
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 15 }}
+                >
+                    <Icon size={12} className={styles.accent} />
+                </motion.div>
+
+                {/* Content (truncated) with smooth fade */}
+                <motion.p
+                    className="flex-1 text-sm text-white/70 group-hover:text-white/90 truncate font-sans transition-colors duration-200"
+                    initial={{ opacity: 0.7 }}
+                    whileHover={{ opacity: 1 }}
+                >
+                    {data.content}
+                </motion.p>
+
+                {/* Metadata with slide-in on hover */}
+                <motion.div
+                    className="flex items-center gap-2"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 0 }}
+                    whileHover={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2 }}
+                >
+                    <span className="text-[10px] font-mono text-white/30 uppercase tracking-wider">
+                        {data.type}
+                    </span>
+                </motion.div>
+            </motion.div>
+        );
+    }
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -129,6 +181,7 @@ export default function NoteCard({ id, data, onUpdate, onDelete, isSelected, onE
             className={clsx(
                 "group relative w-full max-w-[600px] p-6 rounded-2xl transition-all duration-500",
                 "bg-[#0A0A0A] border perspective-1000",
+                pending && "animate-pulse opacity-70",
                 isSelected ? "border-white/30 shadow-[0_0_50px_-10px_rgba(255,255,255,0.15)] scale-[1.02]" : styles.border,
                 isSelected ? "" : styles.glow,
                 "hover:shadow-[0_0_80px_-20px_rgba(255,255,255,0.1)]"
@@ -145,6 +198,11 @@ export default function NoteCard({ id, data, onUpdate, onDelete, isSelected, onE
                     <div className={clsx("p-2 rounded-full transition-colors duration-300", styles.bgAccent)}>
                         <Icon size={16} className={styles.accent} />
                     </div>
+                    {pending && (
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 animate-pulse">
+                            Processing...
+                        </span>
+                    )}
                 </div>
 
                 {/* Main Content - Serif & Elegant */}

@@ -13,13 +13,15 @@ import { useActivity } from "@/context/ActivityContext";
 type ProcessingState = "idle" | "recording" | "transcribing" | "structuring" | "complete" | "error";
 
 interface UnifiedCaptureProps {
-    onEntryCreated?: (entry: { id: string; createdAt: Date; structured: StructuredData }) => void;
+    onEntryCreated?: (entry: { id: string; createdAt: Date; structured: StructuredData; pending?: boolean }) => void;
+    onEntryUpdated?: (id: string, entry: { structured: StructuredData; pending?: boolean }) => void;
+    onEntryRemoved?: (id: string) => void;
     isFocused?: boolean;
     onEscape?: () => void;
     onFocus?: () => void;
 }
 
-export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, onFocus }: UnifiedCaptureProps) {
+export default function UnifiedCapture({ onEntryCreated, onEntryUpdated, onEntryRemoved, isFocused, onEscape, onFocus }: UnifiedCaptureProps) {
     const [draft, setDraft] = useState("");
     const [processingState, setProcessingState] = useState<ProcessingState>("idle");
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -38,15 +40,40 @@ export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, on
         const content = draft.trim();
         if (!content) {
             setErrorMessage("Add a thought first.");
-            setProcessingState("error");
             return;
         }
 
-        try {
-            setProcessingState("structuring");
-            setActivity("transcribing"); // Use transcribing color for structuring too
-            setErrorMessage(null);
+        // Generate a temporary ID for the pending entry
+        const tempId = `pending-${Date.now()}`;
+        const pendingEntry = {
+            id: tempId,
+            createdAt: new Date(),
+            structured: {
+                schemaVersion: 1 as const,
+                type: "unknown" as const,
+                content: content,
+                tags: [],
+            },
+            pending: true,
+        };
 
+        // Optimistic UI: Add pending entry immediately
+        if (onEntryCreated) {
+            onEntryCreated(pendingEntry);
+        }
+
+        // Clear input and set state
+        setDraft("");
+        setErrorMessage(null);
+        setProcessingState("structuring");
+        setActivity("transcribing");
+
+        // Unfocus IMMEDIATELY so user can see the pending entry
+        if (onEscape) {
+            onEscape();
+        }
+
+        try {
             const res = await fetch("/api/structure", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -56,21 +83,32 @@ export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, on
             if (!res.ok) throw new Error("Structuring failed");
             const data = await res.json();
 
+            // Update the pending entry with real data
+            if (onEntryRemoved) {
+                onEntryRemoved(tempId); // Remove the temp entry
+            }
             if (onEntryCreated && data.id) {
                 onEntryCreated({
                     id: data.id,
                     createdAt: data.createdAt ? new Date(data.createdAt) : new Date(),
-                    structured: data.structured
+                    structured: data.structured,
+                    pending: false,
                 });
             }
 
-            // Success: clear form and show toast
-            setDraft("");
+
+
+            // Then do the rest of cleanup
             setResult(null);
             setProcessingState("idle");
             setActivity("idle");
-            showToast("Thought captured!", "success");
+            showToast("Captured", "success");
         } catch (error: any) {
+            // Remove pending entry on error and restore draft
+            if (onEntryRemoved) {
+                onEntryRemoved(tempId);
+            }
+            setDraft(content);
             setErrorMessage(error.message || "Something went wrong");
             setProcessingState("error");
             setActivity("idle");
@@ -107,7 +145,7 @@ export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, on
                     value={draft}
                     onChange={setDraft}
                     onSubmit={handleStructure}
-                    isProcessing={isProcessing}
+                    isProcessing={false} // NEVER block the input
                     onReset={reset}
                     shouldFocus={isFocused}
                     onEscape={onEscape}
