@@ -8,6 +8,7 @@ import Button from "./ui/Button";
 import Textarea from "./ui/Textarea";
 import VoiceVisualizer from "./VoiceVisualizer";
 import StreamingVoiceInput from "./StreamingVoiceInput";
+import { useRealtimeTranscriptionProxy } from "@/hooks/useRealtimeTranscriptionProxy";
 import { useActivity } from "@/context/ActivityContext";
 
 interface SmartInputProps {
@@ -59,17 +60,9 @@ export default function SmartInput({
             const res = await fetch("/api/ws-config");
             const data = await res.json();
             setWsUrl(data.wsUrl || "");
-            setUseStreamingVoice(!!data.wsUrl);
         } catch (error) {
             console.error("Failed to fetch WebSocket config:", error);
             setUseStreamingVoice(false);
-        }
-    };
-
-    const enterStreamingVoice = () => {
-        setUseStreamingVoice(true);
-        if (!wsUrl) {
-            void fetchWsConfig();
         }
     };
 
@@ -208,12 +201,6 @@ export default function SmartInput({
             const target = e.target as HTMLElement;
             const isInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA";
 
-            if (e.key === "v" && e.shiftKey && !isInput && !e.metaKey && !e.ctrlKey) {
-                e.preventDefault();
-                enterStreamingVoice();
-                return;
-            }
-
             if (e.key === "v" && !isInput && !e.metaKey && !e.ctrlKey && !useStreamingVoice) {
                 e.preventDefault();
                 if (isRecording) {
@@ -244,7 +231,7 @@ export default function SmartInput({
                                 onClick={fetchWsConfig}
                                 className="w-full px-4 py-3 rounded-xl bg-purple-500/20 border border-purple-500/30 hover:bg-purple-500/30 text-purple-300 transition-all"
                             >
-                                Enable Cloudflare Streaming
+                                Enable Streaming Transcription
                             </button>
                         )}
 
@@ -328,16 +315,7 @@ export default function SmartInput({
                             </div>
 
                             <button
-                                onClick={(e) => {
-                                    if (e.altKey) {
-                                        enterStreamingVoice();
-                                        return;
-                                    }
-                                    void startRecording();
-                                }}
-                                onDoubleClick={() => {
-                                    enterStreamingVoice();
-                                }}
+                                onClick={startRecording}
                                 disabled={isProcessing}
                                 className={clsx(
                                     "group relative w-10 h-10 flex items-center justify-center rounded-full transition-all",
