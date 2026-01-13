@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { IntelligenceService, StructuredData } from "./types";
+import { IntelligenceService, StructuredData, StructuredDataSchema } from "./types";
 
 export class OpenAIIntelligenceService implements IntelligenceService {
     private openai: OpenAI;
@@ -33,6 +33,7 @@ export class OpenAIIntelligenceService implements IntelligenceService {
 
     Return ONLY valid JSON matching this structure:
     {
+      "schemaVersion": 1,
       "type": "task" | "idea" | "worry" | "plan" | "unknown",
       "content": "string",
       "tags": ["string"],
@@ -56,12 +57,13 @@ export class OpenAIIntelligenceService implements IntelligenceService {
             const content = response.choices[0].message.content;
             if (!content) throw new Error("No content returned from OpenAI");
 
-            const data = JSON.parse(content) as StructuredData;
+            const parsed = JSON.parse(content);
+            const data = StructuredDataSchema.parse(parsed);
             return data;
         } catch (error) {
             console.error("OpenAI Intelligence Error:", error);
-            // Fallback to basic structure on error
             return {
+                schemaVersion: 1,
                 type: "unknown",
                 content: transcript,
                 tags: ["error", "raw"],

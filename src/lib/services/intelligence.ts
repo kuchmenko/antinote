@@ -10,6 +10,7 @@ export class MockIntelligenceService implements IntelligenceService {
         // Simple keyword-based mock logic
         if (transcript.toLowerCase().includes("buy") || transcript.toLowerCase().includes("finish")) {
             return {
+                schemaVersion: 1,
                 type: "task",
                 content: transcript,
                 tags: ["todo", "urgent"],
@@ -18,6 +19,7 @@ export class MockIntelligenceService implements IntelligenceService {
         }
 
         return {
+            schemaVersion: 1,
             type: "idea",
             content: transcript,
             tags: ["thought"],

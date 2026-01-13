@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { MockIntelligenceService } from "@/lib/services/intelligence";
 import { OpenAIIntelligenceService } from "@/lib/services/openai-intelligence";
 import { generateEntryEmbedding } from "@/lib/services/search-service";
+import { extractLoopsFromEntry } from "@/lib/services/loops-service";
 import { db } from "@/db";
 import { entries } from "@/db/schema";
 import { auth } from "@clerk/nextjs/server";
@@ -22,17 +23,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No transcript provided" }, { status: 400 });
         }
 
-        // Fast mode: Skip AI structuring
-        // const service = getService();
-        // const structuredData = await service.structure(transcript);
-
-        const structuredData = {
-            title: "Quick Note",
-            type: "note",
-            content: transcript,
-            tags: [],
-            confidence: 1
-        };
+        const service = getService();
+        const structuredData = await service.structure(transcript);
 
         // Save to DB if user is authenticated
         let entryId = null;
@@ -50,6 +42,13 @@ export async function POST(request: Request) {
             generateEntryEmbedding(entryId).catch((err) => {
                 console.error("[Structure] Failed to generate embedding:", err);
             });
+
+            if (userId) {
+                // Await loop extraction to ensure loops exist before client refreshes
+                await extractLoopsFromEntry(entryId, structuredData, userId).catch((err) => {
+                    console.error("[Structure] Failed to extract loops:", err);
+                });
+            }
         }
 
         return NextResponse.json({ structured: structuredData, id: entryId, createdAt });

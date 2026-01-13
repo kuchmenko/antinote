@@ -88,20 +88,38 @@ export default function UnifiedCapture({ onEntryCreated, isFocused, onEscape, on
     };
 
     return (
-        <div className="w-full max-w-[600px] mx-auto relative z-50">
-            <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
-                <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl p-1 shadow-2xl">
-                    <SmartInput
-                        value={draft}
-                        onChange={setDraft}
-                        onSubmit={handleStructure}
-                        isProcessing={isProcessing}
-                        onReset={reset}
-                        shouldFocus={isFocused}
-                        onEscape={onEscape}
-                        onFocus={onFocus}
+        <div className="w-full mx-auto relative z-50">
+            {/* Focus Overlay */}
+            <AnimatePresence>
+                {isFocused && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[-1]"
+                        onClick={onEscape}
                     />
+                )}
+            </AnimatePresence>
+
+            <div className={`relative transition-all duration-500 ${isFocused ? 'scale-105' : ''}`}>
+                <SmartInput
+                    value={draft}
+                    onChange={setDraft}
+                    onSubmit={handleStructure}
+                    isProcessing={isProcessing}
+                    onReset={reset}
+                    shouldFocus={isFocused}
+                    onEscape={onEscape}
+                    onFocus={onFocus}
+                    minimal
+                />
+
+                {/* System Status Line */}
+                <div className="absolute -bottom-6 left-0 w-full flex justify-center">
+                    <span className="text-[10px] font-mono text-white/20 uppercase tracking-widest">
+                        {isProcessing ? "Processing..." : isFocused ? "Ready to Capture" : "System Idle"}
+                    </span>
                 </div>
             </div>
 

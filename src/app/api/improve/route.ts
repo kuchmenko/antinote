@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { entries } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
-import { StructuredData } from "@/lib/services/types";
+import { StructuredData, StructuredDataSchema } from "@/lib/services/types";
 import OpenAI from "openai";
 
 const openai = new OpenAI({
@@ -72,13 +72,14 @@ You may:
 - Add, enhance, or restructure action items
 - Change the type if it makes more sense
 
-Return ONLY valid JSON matching this structure:
-{
-  "type": "task" | "idea" | "worry" | "plan" | "unknown",
-  "content": "improved content string",
-  "tags": ["tag1", "tag2"],
-  "next_steps": ["step1", "step2"] (optional, can be empty array or omitted)
-}
+ Return ONLY valid JSON matching this structure:
+ {
+   "schemaVersion": 1,
+   "type": "task" | "idea" | "worry" | "plan" | "unknown",
+   "content": "improved content string",
+   "tags": ["tag1", "tag2"],
+   "next_steps": ["step1", "step2"] (optional, can be empty array or omitted)
+ }
 
 Make meaningful improvements that align with the user's instruction while preserving the core intent of the original entry.
 `;
@@ -98,7 +99,7 @@ Make meaningful improvements that align with the user's instruction while preser
             throw new Error("No content returned from OpenAI");
         }
 
-        const improvedData = JSON.parse(content) as StructuredData;
+        const improvedData = StructuredDataSchema.parse(JSON.parse(content));
 
         // Update entry in database
         const [updated] = await db

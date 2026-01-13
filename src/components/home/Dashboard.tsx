@@ -1,39 +1,25 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import UnifiedCapture from "@/components/UnifiedCapture";
 import DailyFeed from "@/components/DailyFeed";
-import Link from "next/link";
-import { StructuredData } from "@/lib/services/types";
-import { useEntries } from "@/context/EntriesContext";
+import { OpenLoopsSection } from "@/components/OpenLoopsSection";
 import Navbar from "@/components/Navbar";
-import PageHeader from "@/components/PageHeader";
 import AppBackground from "@/components/AppBackground";
+import { useEntries } from "@/context/EntriesContext";
+import type { StructuredData } from "@/lib/services/types";
+import { useQueryClient } from "@tanstack/react-query";
+import SystemHeader from "@/components/SystemHeader";
+import { useLoopsByStatus } from "@/hooks/useLoops";
 
 interface DashboardProps {
     user: { firstName: string | null; imageUrl?: string } | null;
     userEntries: { id: string; createdAt: Date; structured: StructuredData }[];
 }
 
-export default function Dashboard({ user, userEntries }: DashboardProps) {
-    const { entries, setEntries, removeEntry, updateEntry, addEntry } = useEntries();
+export default function Dashboard({ user }: DashboardProps) {
+    const { entries, removeEntry, updateEntry, addEntry } = useEntries();
     const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
-    const captureRef = useRef<HTMLDivElement>(null);
-
-    // Initialize context with server data
-    useEffect(() => {
-        setEntries(userEntries);
-    }, [userEntries, setEntries]);
-
-    // Scroll capture into view when focused
-    useEffect(() => {
-        if (focusedIndex === -1 && captureRef.current) {
-            captureRef.current.scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-            });
-        }
-    }, [focusedIndex]);
 
     // Global Navigation Shortcuts
     useEffect(() => {
@@ -68,8 +54,12 @@ export default function Dashboard({ user, userEntries }: DashboardProps) {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [entries.length]);
 
+    const queryClient = useQueryClient();
+
     const handleEntryCreated = (newEntry: { id: string; createdAt: Date; structured: StructuredData }) => {
         addEntry(newEntry);
+        // Refresh loops immediately
+        queryClient.invalidateQueries({ queryKey: ["loops"] });
     };
 
     const handleDelete = async (id: string) => {
@@ -108,14 +98,8 @@ export default function Dashboard({ user, userEntries }: DashboardProps) {
         }
     };
 
-    const hour = new Date().getHours();
-    let timeGreeting = "Good evening";
-    if (hour < 5) timeGreeting = "Late night";
-    else if (hour < 12) timeGreeting = "Good morning";
-    else if (hour < 18) timeGreeting = "Good afternoon";
-
-    const firstName = user?.firstName;
-    const greeting = firstName ? `${timeGreeting}, ${firstName}` : timeGreeting;
+    const { open, snoozed } = useLoopsByStatus();
+    const totalLoops = (open?.length || 0) + (snoozed?.length || 0);
 
     return (
         <main className="relative min-h-screen w-full overflow-hidden flex flex-col items-center bg-black">
@@ -123,13 +107,11 @@ export default function Dashboard({ user, userEntries }: DashboardProps) {
             <Navbar />
 
             <div className="relative z-10 flex flex-col items-center w-full max-w-2xl px-6 pt-32 pb-20">
-                <PageHeader
-                    title={`${greeting}.`}
-                    description="Capture your thoughts."
-                />
+                {/* System Header */}
+                <SystemHeader loopCount={totalLoops} />
 
-                {/* Capture Area */}
-                <div className="w-full mb-8">
+                {/* Capture Area (The Anchor) */}
+                <div className="w-full mb-12">
                     <UnifiedCapture
                         onEntryCreated={handleEntryCreated}
                         isFocused={focusedIndex === -1}
@@ -138,10 +120,11 @@ export default function Dashboard({ user, userEntries }: DashboardProps) {
                     />
                 </div>
 
-                <div className="w-full h-px bg-white/10 mb-4" />
+                {/* Active Memory (Compact Loops) */}
+                <OpenLoopsSection compact />
 
-                {/* Feed Section */}
-                <div className="w-full">
+                {/* The Log (Feed) */}
+                <div className="w-full opacity-60 hover:opacity-100 transition-opacity duration-500">
                     <DailyFeed
                         entries={entries}
                         onDelete={handleDelete}

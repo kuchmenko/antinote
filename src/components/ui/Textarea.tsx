@@ -5,10 +5,26 @@ import clsx from "clsx";
 
 interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
     error?: boolean;
+    variant?: "default" | "minimal";
 }
 
 const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
-    ({ className, error, ...props }, ref) => {
+    ({ className, error, variant = "default", ...props }, ref) => {
+        if (variant === "minimal") {
+            return (
+                <textarea
+                    ref={ref}
+                    className={clsx(
+                        "w-full bg-transparent text-white/90 text-base leading-relaxed resize-none font-mono",
+                        "placeholder:text-white/20 transition-all duration-200 ease-out outline-none",
+                        "focus:outline-none",
+                        className
+                    )}
+                    {...props}
+                />
+            );
+        }
+
         return (
             <textarea
                 ref={ref}

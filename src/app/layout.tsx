@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
 import InteractiveCursor from "@/components/InteractiveCursor";
 import { ToastProvider } from "@/components/ui/Toast";
 import { EntriesProvider } from "@/context/EntriesContext";
 import { ActivityProvider } from "@/context/ActivityContext";
+import { Providers } from "./providers";
 import GlobalCaptureOverlay from "@/components/GlobalCaptureOverlay";
 import "./globals.css";
 
@@ -28,8 +28,8 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <ClerkProvider>
+        return (
+    <Providers>
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable}`}>
           <ToastProvider>
@@ -43,6 +43,6 @@ export default function RootLayout({
           </ToastProvider>
         </body>
       </html>
-    </ClerkProvider>
+    </Providers>
   );
 }

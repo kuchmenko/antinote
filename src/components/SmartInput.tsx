@@ -23,6 +23,7 @@ interface SmartInputProps {
     shouldFocus?: boolean;
     onEscape?: () => void;
     onFocus?: () => void;
+    minimal?: boolean;
 }
 
 export default function SmartInput({
@@ -38,6 +39,7 @@ export default function SmartInput({
     shouldFocus,
     onEscape,
     onFocus,
+    minimal,
 }: SmartInputProps) {
     const { setActivity } = useActivity();
     const [isRecording, setIsRecording] = useState(false);
@@ -227,6 +229,136 @@ export default function SmartInput({
         window.addEventListener("keydown", handleGlobalKey);
         return () => window.removeEventListener("keydown", handleGlobalKey);
     }, [isRecording, useStreamingVoice]);
+
+    if (minimal) {
+        return (
+            <div className="w-full">
+                <AnimatePresence mode="wait">
+                    {useStreamingVoice ? (
+                        <motion.div
+                            key="streaming"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="w-full"
+                        >
+                            {!wsUrl && (
+                                <button
+                                    onClick={fetchWsConfig}
+                                    className="w-full px-4 py-3 rounded-xl bg-purple-500/20 border border-purple-500/30 hover:bg-purple-500/30 text-purple-300 transition-all"
+                                >
+                                    Enable Cloudflare Streaming
+                                </button>
+                            )}
+
+                            {wsUrl && (
+                                <StreamingVoiceInput
+                                    onTranscriptReady={handleStreamingTranscript}
+                                    wsUrl={wsUrl}
+                                    disabled={isProcessing}
+                                />
+                            )}
+
+                            <button
+                                onClick={() => setUseStreamingVoice(false)}
+                                className="mt-4 text-xs text-white/40 hover:text-white/60 transition-colors"
+                            >
+                                Back to standard mode
+                            </button>
+                        </motion.div>
+                    ) : isRecording ? (
+                        <motion.div
+                            key="recording"
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="flex items-center gap-4 py-2 px-4 bg-white/5 rounded-md border border-white/10"
+                        >
+                            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                            <span className="text-sm font-mono text-white/60">Listening...</span>
+                            <div className="flex-1 h-4">
+                                <VoiceVisualizer
+                                    analyser={analyserRef.current}
+                                    isActive={isRecording}
+                                />
+                            </div>
+                            <button
+                                onClick={stopRecording}
+                                className="text-xs text-white/40 hover:text-white uppercase font-mono"
+                            >
+                                [STOP]
+                            </button>
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            key="input"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="relative flex items-start gap-3 p-4 bg-black border border-white/20 rounded-lg shadow-2xl group focus-within:border-white/40 transition-colors"
+                        >
+                            <span className="text-emerald-500 font-mono mt-1 select-none">{">"}</span>
+
+                            <div className="flex-1">
+                                <Textarea
+                                    ref={textareaRef}
+                                    value={value}
+                                    onChange={(e) => {
+                                        onChange(e.target.value);
+                                        if (errorMessage) setErrorMessage(null);
+                                    }}
+                                    onKeyDown={handleKeyDown}
+                                    onFocus={onFocus}
+                                    placeholder={placeholder}
+                                    rows={1}
+                                    disabled={isProcessing}
+                                    variant="minimal"
+                                    className={clsx("min-h-[24px]", textareaClassName)}
+                                />
+                            </div>
+
+                            <div className="flex items-center gap-3 self-start mt-1">
+                                <span className="text-[10px] font-mono text-white/20 select-none">
+                                    {value.length}
+                                </span>
+
+                                <button
+                                    onClick={(e) => {
+                                        if (e.altKey) {
+                                            enterStreamingVoice();
+                                            return;
+                                        }
+                                        void startRecording();
+                                    }}
+                                    onDoubleClick={() => {
+                                        enterStreamingVoice();
+                                    }}
+                                    disabled={isProcessing}
+                                    className="text-white/20 hover:text-white/60 transition-colors"
+                                    title="Voice Input (v)"
+                                >
+                                    <Mic size={14} />
+                                </button>
+
+                                <button
+                                    onClick={onSubmit}
+                                    disabled={!canSubmit}
+                                    className="text-white/20 hover:text-emerald-500 disabled:opacity-10 disabled:hover:text-white/20 transition-colors"
+                                    title="Capture (Enter)"
+                                >
+                                    <Send size={14} />
+                                </button>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {errorMessage && (
+                    <p className="text-red-400 text-xs font-mono mt-2 ml-2">{errorMessage}</p>
+                )}
+            </div>
+        );
+    }
 
     return (
         <div className="w-full">
