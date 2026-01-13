@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import {
     motion,
     useMotionValue,
     useSpring,
     useVelocity,
     useTransform,
-    useMotionTemplate
+    useAnimationFrame
 } from "framer-motion";
+
+// Padding around element when hovering (makes ring bigger than element)
+const HOVER_PADDING = 8;
 
 interface HoverState {
     x: number;
@@ -19,63 +22,97 @@ interface HoverState {
 }
 
 export default function InteractiveCursor() {
-    const [isHovering, setIsHovering] = useState(false);
-    const hoverRef = useRef<HoverState | null>(null);
+    const [hoverState, setHoverState] = useState<HoverState | null>(null);
+    const isHoveringRef = useRef(false);
+    const hoverStateRef = useRef<HoverState | null>(null);
+    const activeElementRef = useRef<Element | null>(null);
 
     // Raw mouse position
     const mouseX = useMotionValue(-100);
     const mouseY = useMotionValue(-100);
 
-    // Smooth physics for the cursor
-    // Damping 30/Stiffness 350 gives a nice "heavy" but responsive feel
-    const springConfig = { damping: 30, stiffness: 350, mass: 0.5 };
+    // Cursor size for proper centering
+    const cursorWidth = useMotionValue(10);
+    const cursorHeight = useMotionValue(10);
+
+    // Smooth physics - heavy but responsive
+    const springConfig = { damping: 25, stiffness: 400, mass: 0.8 };
     const cursorX = useSpring(mouseX, springConfig);
     const cursorY = useSpring(mouseY, springConfig);
+    const springWidth = useSpring(cursorWidth, springConfig);
+    const springHeight = useSpring(cursorHeight, springConfig);
 
-    // Velocity for squash and stretch
+    // Velocity for subtle effects
     const velocityX = useVelocity(cursorX);
     const velocityY = useVelocity(cursorY);
 
-    // Calculate rotation based on movement direction
-    const rotation = useTransform([velocityX, velocityY], ([vx, vy]: number[]) => {
-        if (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) return 0;
-        return Math.atan2(vy, vx) * (180 / Math.PI);
+    const wobbleX = useMotionValue(0);
+    const wobbleY = useMotionValue(0);
+    const timeRef = useRef(0);
+
+    useAnimationFrame((t) => {
+        if (!isHoveringRef.current) {
+            timeRef.current = t;
+            return;
+        }
+        const elapsed = (t - timeRef.current) * 0.001;
+        wobbleX.set(Math.sin(elapsed * 2) * 1.5);
+        wobbleY.set(Math.cos(elapsed * 2.5) * 1.5);
     });
 
-    // Squash and stretch based on total velocity magnitude
-    const scaleX = useTransform(
+    const scale = useTransform(
         [velocityX, velocityY],
         ([vx, vy]: number[]) => {
             const speed = Math.sqrt(vx * vx + vy * vy);
-            return Math.min(1 + speed * 0.0005, 1.3); // Stretch up to 1.3x
+            return 1 + Math.min(speed * 0.0003, 0.12);
         }
     );
 
-    const scaleY = useTransform(
-        [velocityX, velocityY],
-        ([vx, vy]: number[]) => {
-            const speed = Math.sqrt(vx * vx + vy * vy);
-            return Math.max(1 - speed * 0.0005, 0.8); // Squash down to 0.8x
-        }
-    );
+    // Update geometry from active element
+    const updateGeometry = useCallback(() => {
+        if (!activeElementRef.current) return;
+        
+        const rect = activeElementRef.current.getBoundingClientRect();
+        const style = window.getComputedStyle(activeElementRef.current as HTMLElement);
+        
+        const newHoverState: HoverState = {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+            radius: style.borderRadius === "0px" ? "12px" : style.borderRadius,
+        };
+        
+        hoverStateRef.current = newHoverState;
+        setHoverState(newHoverState);
+        cursorWidth.set(rect.width + HOVER_PADDING * 2);
+        cursorHeight.set(rect.height + HOVER_PADDING * 2);
+    }, [cursorWidth, cursorHeight]);
+
+    // Set cursor position to element center
+    const setCursorToElementCenter = useCallback(() => {
+        if (!hoverStateRef.current) return;
+        const hs = hoverStateRef.current;
+        const centerX = hs.x + hs.width / 2;
+        const centerY = hs.y + hs.height / 2;
+        mouseX.set(centerX);
+        mouseY.set(centerY);
+    }, [mouseX, mouseY]);
 
     useEffect(() => {
         const moveCursor = (e: MouseEvent) => {
             const { clientX, clientY } = e;
 
-            if (hoverRef.current) {
-                // Magnetic Logic
-                const { x, y, width, height } = hoverRef.current;
-                const centerX = x + width / 2;
-                const centerY = y + height / 2;
-
-                // Calculate distance from center
-                const dist = { x: clientX - centerX, y: clientY - centerY };
-
-                // Apply magnetic pull (0.1 means strong pull to center, 0.3 means weaker)
-                // We want the cursor to stick to the button but move slightly with the mouse
-                const magneticX = centerX + dist.x * 0.2;
-                const magneticY = centerY + dist.y * 0.2;
+            if (isHoveringRef.current && hoverStateRef.current) {
+                const hs = hoverStateRef.current;
+                const elementCenterX = hs.x + hs.width / 2;
+                const elementCenterY = hs.y + hs.height / 2;
+                
+                // Light magnetic pull toward center (0.15)
+                const offsetX = clientX - elementCenterX;
+                const offsetY = clientY - elementCenterY;
+                const magneticX = elementCenterX + offsetX * 0.15;
+                const magneticY = elementCenterY + offsetY * 0.15;
 
                 mouseX.set(magneticX);
                 mouseY.set(magneticY);
@@ -85,80 +122,127 @@ export default function InteractiveCursor() {
             }
         };
 
-        const handleInteraction = (target: HTMLElement) => {
+        const handleInteraction = (target: EventTarget | null) => {
+            // Safe guard for non-Element targets
+            if (!(target instanceof Element)) {
+                isHoveringRef.current = false;
+                activeElementRef.current = null;
+                setHoverState(null);
+                cursorWidth.set(10);
+                cursorHeight.set(10);
+                return;
+            }
+
             const interactive = target.closest("button, a, [role='button'], input, textarea, [data-interactive='true']");
 
             if (interactive) {
-                const rect = interactive.getBoundingClientRect();
-                const style = window.getComputedStyle(interactive);
-
-                hoverRef.current = {
-                    x: rect.left,
-                    y: rect.top,
-                    width: rect.width,
-                    height: rect.height,
-                    radius: style.borderRadius === "0px" ? "12px" : style.borderRadius,
-                };
-                setIsHovering(true);
+                // Only update if element changed
+                if (activeElementRef.current !== interactive) {
+                    activeElementRef.current = interactive;
+                    isHoveringRef.current = true;
+                    updateGeometry();
+                }
             } else {
-                hoverRef.current = null;
-                setIsHovering(false);
+                isHoveringRef.current = false;
+                activeElementRef.current = null;
+                setHoverState(null);
+                cursorWidth.set(10);
+                cursorHeight.set(10);
             }
         };
 
-        const handleMouseOver = (e: MouseEvent) => handleInteraction(e.target as HTMLElement);
-        const handleFocus = (e: FocusEvent) => handleInteraction(e.target as HTMLElement);
+        const handleMouseOver = (e: MouseEvent) => handleInteraction(e.target);
+        
+        const handleFocus = (e: FocusEvent) => {
+            handleInteraction(e.target);
+            // Move cursor to focused element center
+            if (isHoveringRef.current) {
+                setCursorToElementCenter();
+            }
+        };
+        
         const handleBlur = () => {
-            hoverRef.current = null;
-            setIsHovering(false);
+            isHoveringRef.current = false;
+            activeElementRef.current = null;
+            setHoverState(null);
+            cursorWidth.set(10);
+            cursorHeight.set(10);
         };
 
-        window.addEventListener("mousemove", moveCursor);
+        // Update geometry on scroll/resize
+        const handleScrollResize = () => {
+            if (isHoveringRef.current && activeElementRef.current) {
+                updateGeometry();
+            }
+        };
+
+        window.addEventListener("mousemove", moveCursor, { passive: true });
         window.addEventListener("mouseover", handleMouseOver, { passive: true });
         window.addEventListener("focusin", handleFocus, { passive: true });
         window.addEventListener("focusout", handleBlur, { passive: true });
+        window.addEventListener("scroll", handleScrollResize, { passive: true, capture: true });
+        window.addEventListener("resize", handleScrollResize, { passive: true });
 
         return () => {
             window.removeEventListener("mousemove", moveCursor);
             window.removeEventListener("mouseover", handleMouseOver);
             window.removeEventListener("focusin", handleFocus);
             window.removeEventListener("focusout", handleBlur);
+            window.removeEventListener("scroll", handleScrollResize, { capture: true });
+            window.removeEventListener("resize", handleScrollResize);
         };
-    }, [mouseX, mouseY]);
+    }, [mouseX, mouseY, cursorWidth, cursorHeight, updateGeometry, setCursorToElementCenter]);
+
+    const isHovering = hoverState !== null;
 
     return (
         <>
-            {/* Main Cursor Dot - Morphs into the magnetic box */}
+            {/* Main Cursor - width/height on container for proper centering */}
             <motion.div
-                className="fixed top-0 left-0 pointer-events-none z-[9999] mix-blend-difference"
+                className="fixed top-0 left-0 pointer-events-none z-[9999] flex items-center justify-center"
                 style={{
-                    x: cursorX,
-                    y: cursorY,
+                    x: useTransform([cursorX, wobbleX], ([cx, wx]: number[]) => cx + wx),
+                    y: useTransform([cursorY, wobbleY], ([cy, wy]: number[]) => cy + wy),
+                    width: springWidth,
+                    height: springHeight,
                     translateX: "-50%",
                     translateY: "-50%",
-                    rotate: isHovering ? 0 : rotation,
-                    scaleX: isHovering ? 1 : scaleX,
-                    scaleY: isHovering ? 1 : scaleY,
+                    scale: scale,
                 }}
-                animate={{
-                    width: isHovering && hoverRef.current ? hoverRef.current.width : 12,
-                    height: isHovering && hoverRef.current ? hoverRef.current.height : 12,
-                    borderRadius: isHovering && hoverRef.current ? hoverRef.current.radius : "50%",
-                    backgroundColor: isHovering ? "rgba(255, 255, 255, 0)" : "rgba(255, 255, 255, 1)",
-                    border: isHovering ? "1px solid rgba(255, 255, 255, 0.5)" : "0px solid rgba(255, 255, 255, 0)",
-                    opacity: 1,
-                }}
-                transition={{
-                    type: "spring",
-                    damping: 25,
-                    stiffness: 300,
-                    mass: 0.5
-                }}
-            />
+            >
+                {/* Outer glow ring - fills container */}
+                <motion.div
+                    className="absolute inset-0 rounded-full pointer-events-none"
+                    animate={{
+                        borderRadius: isHovering && hoverState ? hoverState.radius : "50%",
+                        border: "1px solid rgba(255, 255, 255, 0.25)",
+                        backgroundColor: isHovering ? "rgba(255, 255, 255, 0.04)" : "rgba(255, 255, 255, 0.1)",
+                        boxShadow: isHovering 
+                            ? "0 0 24px rgba(255, 255, 255, 0.08), inset 0 0 12px rgba(255, 255, 255, 0.03)"
+                            : "0 0 12px rgba(255, 255, 255, 0.15)",
+                    }}
+                    transition={{
+                        type: "spring",
+                        damping: 25,
+                        stiffness: 400,
+                        mass: 0.8
+                    }}
+                />
+                
+                {/* Inner dot - cursor anchor */}
+                <motion.div
+                    className="absolute rounded-full pointer-events-none"
+                    style={{
+                        width: 4,
+                        height: 4,
+                        backgroundColor: "rgba(255, 255, 255, 0.85)",
+                    }}
+                />
+            </motion.div>
 
-            {/* Subtle Trail / Ghost (Only visible when moving fast and not hovering) */}
+            {/* Ambient trail */}
             <motion.div
-                className="fixed top-0 left-0 w-3 h-3 bg-white/30 rounded-full pointer-events-none z-[9998] mix-blend-difference"
+                className="fixed top-0 left-0 pointer-events-none z-[9998]"
                 style={{
                     x: cursorX,
                     y: cursorY,
@@ -166,11 +250,20 @@ export default function InteractiveCursor() {
                     translateY: "-50%",
                 }}
                 animate={{
-                    scale: isHovering ? 0 : 0.8,
-                    opacity: isHovering ? 0 : 0.5,
+                    scale: isHovering ? 0 : 0.5,
+                    opacity: isHovering ? 0 : 0.2,
                 }}
-                transition={{ duration: 0.1 }}
-            />
+                transition={{ duration: 0.25 }}
+            >
+                <div 
+                    className="rounded-full"
+                    style={{
+                        width: 5,
+                        height: 5,
+                        background: "radial-gradient(circle, rgba(255,255,255,0.35) 0%, transparent 70%)",
+                    }}
+                />
+            </motion.div>
         </>
     );
 }

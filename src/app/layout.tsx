@@ -35,7 +35,7 @@ export default function RootLayout({
           <ToastProvider>
             <EntriesProvider>
               <ActivityProvider>
-                {/* <InteractiveCursor /> */}
+                <InteractiveCursor />
                 <GlobalCaptureOverlay />
                 {children}
               </ActivityProvider>
