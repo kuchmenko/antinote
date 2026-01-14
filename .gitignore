@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# strategic docs (never push to repo)
+docs/RFC-0003-*
+docs/RFC-0004-*
+docs/RFC-0005-*
+docs/RFC-0006-*
+docs/MARKET-RESEARCH.md
+docs/STRATEGIC-ANALYSIS.md
